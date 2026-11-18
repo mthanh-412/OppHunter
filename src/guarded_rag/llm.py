@@ -40,7 +40,10 @@ def extract_json(text: str) -> dict:
 
 class OpenAICompatLLM:
     def __init__(self, base_url: str, model: str, api_key: str = "unused", timeout: float = 120.0):
-        from openai import OpenAI
+        if os.environ.get("LANGFUSE_PUBLIC_KEY"):
+            from langfuse.openai import OpenAI
+        else:
+            from openai import OpenAI
 
         self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout, max_retries=6)
         self.model = model
