@@ -90,7 +90,7 @@ class ScriptedLLM:
             notes = re.findall(r"- (.+?) \[c:([^\]]+)\]", user)
             if self.sabotage_first_write and self._writes == 1:
                 return "Here is what I found.\n" + "\n".join(f"- {t}" for t, _ in notes)  # no citations
-            return "\n".join(f"- {t} [c:{c}]" for t, c in notes) or "I could not find this in the handbook."
+            return "\n".join(f"- {t} [c:{c}]" for t, c in notes) or "I could not find this in the scholarship database."
         if task == "judge_injection":
             return json.dumps({"injection": False, "reason": "scripted"})
         if task == "judge":

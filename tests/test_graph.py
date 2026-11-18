@@ -7,16 +7,25 @@ from guarded_rag.llm import ScriptedLLM
 S = Settings()
 KB = load_kb(S.kb_dir)
 
+def _q(chunk, n=8):
+    words = [w for w in chunk.text.split() if w.lower() != "and"][:n]
+    return " ".join(words)
+
+
+CH_A = KB.chunks[0]
+CH_B = next(c for c in KB.chunks if c.doc != CH_A.doc)
+Q_A, Q_B = _q(CH_A), _q(CH_B)
+DOC_A, DOC_B = CH_A.doc, CH_B.doc
 
 def steps(r):
     return [t["step"] for t in r.trace]
 
 
 def test_multi_part_question_fans_out_and_cites_both_topics():
-    r = answer("What is the minimum password length and which MFA methods are approved?", ScriptedLLM(), KB, S)
+    r = answer(Q_A + " and " + Q_B, ScriptedLLM(), KB, S)
     assert r.status == "answered"
     assert steps(r).count("worker") == 2
-    assert {c.split("#")[0] for c in r.citations} >= {"password-policy", "mfa"}
+    assert {c.split("#")[0] for c in r.citations} >= {DOC_A, DOC_B}
 
 
 def test_injection_is_blocked_before_any_planning():
@@ -32,14 +41,14 @@ def test_out_of_scope_is_refused_without_writing():
 
 
 def test_validator_failure_triggers_repair():
-    r = answer("Which MFA methods are approved?", ScriptedLLM(sabotage_first_write=True), KB, S)
+    r = answer(Q_A, ScriptedLLM(sabotage_first_write=True), KB, S)
     assert steps(r).count("repair") == 1
     assert r.status == "answered" and r.citations
 
 
 def test_budget_exhaustion_degrades_to_cited_extractive_answer():
     tight = Settings(llm_call_budget=2)
-    r = answer("Which MFA methods are approved?", ScriptedLLM(sabotage_first_write=True), KB, tight)
+    r = answer(Q_A, ScriptedLLM(sabotage_first_write=True), KB, tight)
     assert r.status == "fallback"
     assert r.citations
 
@@ -52,7 +61,7 @@ def test_pii_never_reaches_the_model_but_is_restored():
             seen.append(user)
             return super().complete(system, user)
 
-    r = answer("I am jane.doe@gmail.com and lost my phone - how do I reset MFA?", Spy(), KB, S)
+    r = answer("I am jane.doe@gmail.com and " + Q_A, Spy(), KB, S)
     assert r.status == "answered"
     assert all("jane.doe@gmail.com" not in u for u in seen)
 

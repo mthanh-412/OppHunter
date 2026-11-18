@@ -21,7 +21,7 @@ def _llm(args, s: Settings):
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    p = argparse.ArgumentParser(prog="grag", description="Guarded agentic RAG over a security handbook")
+    p = argparse.ArgumentParser(prog="grag", description="Guarded agentic RAG over a scholarship knowledge base")
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("ask", help="answer one question")
     a.add_argument("question")
