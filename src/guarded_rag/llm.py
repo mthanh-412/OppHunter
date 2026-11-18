@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 import re
+import os
+import time
 from typing import Protocol
 
 THINK = re.compile(r"<think>.*?</think>", re.S)
@@ -40,11 +42,12 @@ class OpenAICompatLLM:
     def __init__(self, base_url: str, model: str, api_key: str = "unused", timeout: float = 120.0):
         from openai import OpenAI
 
-        self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+        self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout, max_retries=6)
         self.model = model
         self.calls = 0
 
     def complete(self, system: str, user: str) -> str:
+        time.sleep(float(os.environ.get("GRAG_LLM_DELAY", "0")))
         self.calls += 1
         # "/no_think" disables the reasoning trace on Qwen3-style models; other models ignore it.
         r = self.client.chat.completions.create(
