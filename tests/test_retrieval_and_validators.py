@@ -55,3 +55,10 @@ def test_contacts_not_in_evidence_are_rejected():
 
 def test_honest_refusal_needs_no_citation():
     assert validate("I could not find this in the handbook.", EVIDENCE) == []
+
+
+def test_validator_flags_wrong_date_and_number():
+    ev = {"x#1": "Application deadline: 2027-01-31. IELTS 6.5 required."}
+    assert validate("- Deadline is 2027-01-31 and IELTS 6.5 [c:x#1]", ev) == []
+    assert any("date" in i for i in validate("- Deadline is 2027-01-30 [c:x#1]", ev))
+    assert any("number" in i for i in validate("- IELTS 7.0 required [c:x#1]", ev))

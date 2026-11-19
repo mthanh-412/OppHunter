@@ -1,7 +1,7 @@
 # International Undergraduate Scholarship
 
 ## Key facts
-International Undergraduate Scholarship is offered by the University of Stirling to eligible international undergraduate entrants. Level: undergraduate. Funding: GBP 2,500 per year, up to GBP 10,000 over four years, deducted from annual tuition fees. Application deadline: not specified. Status: not specified. Official page: 
+International Undergraduate Scholarship is offered by the University of Stirling to eligible international undergraduate entrants. Level: undergraduate. Funding: GBP 2,500 per year, up to GBP 10,000 over four years, deducted from annual tuition fees. Eligible start dates (intake or entry): January 2027, September 2027 or January 2028. Application deadline: not specified. Status: not specified. Official page: 
 https://www.stir.ac.uk/scholarships/general/undergraduate/international-undergraduate-scholarship/.
 
 ## Eligibility

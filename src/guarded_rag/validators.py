@@ -13,6 +13,12 @@ CITE = re.compile(r"\[c:([\w.-]+#\d+)\]")
 CONTACT = re.compile(r"https?://\S+|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b")
 REFUSAL = re.compile(r"\b(could not find|not covered|don't know|do not know|cannot answer)\b", re.I)
 MAX_CHARS = 1500
+DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+NUMBER = re.compile(r"\d[\d,.]*\d")
+
+
+def _numbers(s: str) -> set[str]:
+    return {t.replace(",", "").rstrip(".") for t in NUMBER.findall(s)}
 
 
 def citations(answer: str) -> list[str]:
@@ -47,4 +53,11 @@ def validate(answer: str, evidence: dict[str, str]) -> list[str]:
     for contact in CONTACT.findall(text):
         if contact.rstrip(".,)") not in corpus:
             issues.append(f"link or address not found in cited evidence: {contact}")
+    body = re.sub(r"(?m)^\s*\d+[.)]\s+", "", CITE.sub("", text))
+    for d in DATE.findall(body):
+        if d not in corpus:
+            issues.append(f"date not found in cited evidence: {d}")
+    known = _numbers(corpus)
+    for n in sorted(_numbers(DATE.sub("", body)) - known):
+        issues.append(f"number not found in cited evidence: {n}")
     return issues
