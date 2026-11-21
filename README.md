@@ -20,19 +20,19 @@
 ```mermaid
 flowchart TD
     Q["Câu hỏi của sinh viên"] --> G["input_guard<br/>che PII, quét mẫu, LLM judge"]
-    G -- "bị chặn" --> R["refuse"]
-    G --> P["plan<br/>tối đa 3 câu con, viết bằng tiếng Anh"]
+    G -- "Bị chặn" --> R["refuse"]
+    G --> P["Plan<br/>tối đa 3 câu con, viết bằng tiếng Anh"]
     P --> W1["worker 1<br/>BM25 + ghi chú"]
     P --> W2["worker N<br/>BM25 + ghi chú"]
     W1 --> S["scope_check"]
     W2 --> S
-    S -- "ngoài phạm vi" --> R
+    S -- "Ngoài phạm vi" --> R
     S --> WR["write"]
     WR --> V["validate"]
-    V -- "hợp lệ" --> F["finalize"]
-    V -- "có lỗi" --> RP["repair (tối đa 2 lần)"]
+    V -- "Hợp lệ" --> F["finalize"]
+    V -- "Có lỗi" --> RP["repair (tối đa 2 lần)"]
     RP --> V
-    V -- "hết ngân sách hoặc còn lỗi" --> FB["fallback<br/>trích nguyên văn có nguồn"]
+    V -- "Hết ngân sách hoặc còn lỗi" --> FB["fallback<br/>trích nguyên văn có nguồn"]
     FB --> F
 ```
 
