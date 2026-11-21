@@ -23,7 +23,11 @@ settings = Settings()
 kb = load_kb(settings.kb_dir)  # nạp 1 lần lúc khởi động
 
 OFFLINE = os.getenv("GRAG_OFFLINE") == "1"                 # =1 để test không cần model
-ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",")]
+ORIGINS = [
+    o.strip()
+    for o in os.getenv("ALLOWED_ORIGINS", "").split(",")
+    if o.strip()
+]
 PER_MIN = int(os.getenv("RATE_PER_MIN", "6"))              # số câu hỏi / phút / người dùng
 DAILY_CAP = int(os.getenv("DAILY_CAP", "300"))             # tổng số câu hỏi / ngày (bảo vệ quota API key)
 MAX_LEN = 500                                              # độ dài tối đa của câu hỏi
@@ -36,7 +40,13 @@ for c in kb.chunks:
         LINK[doc] = m.group(1)
 
 app = FastAPI(title="OppHunter API")
-app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 _hits: dict[str, deque] = defaultdict(deque)
 _day = {"d": "", "n": 0}
