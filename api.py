@@ -28,7 +28,6 @@ PER_MIN = int(os.getenv("RATE_PER_MIN", "6"))              # số câu hỏi / p
 DAILY_CAP = int(os.getenv("DAILY_CAP", "300"))             # tổng số câu hỏi / ngày (bảo vệ quota API key)
 MAX_LEN = 500                                              # độ dài tối đa của câu hỏi
 
-# Gom link "Official page" của từng học bổng từ dữ liệu
 LINK: dict[str, str] = {}
 for c in kb.chunks:
     doc = c.id.split("#")[0]
@@ -80,7 +79,6 @@ def chat(r: Req, request: Request):
     ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "?")
     _check_rate(ip)
 
-    # Tạo LLM mới cho mỗi request để bộ đếm ngân sách (llm.calls) không bị lẫn giữa người dùng
     llm = ScriptedLLM() if OFFLINE else OpenAICompatLLM(settings.llm_base_url, settings.llm_model, settings.llm_api_key)
     try:
         res = answer(msg, llm, kb, settings, use_llm_judge=not OFFLINE)
@@ -94,6 +92,5 @@ def chat(r: Req, request: Request):
             continue
         seen.add(doc)
         sources.append({"id": doc, "title": doc.replace("-", " ").title(), "link": LINK.get(doc)})
-    # Trả về bản câu hỏi đã che PII (hàm mask của lõi) để giao diện chỉ lưu bản này vào lịch sử
     masked_q, _ = mask(msg)
     return {"answer": res.answer, "status": res.status, "sources": sources, "masked_question": masked_q}
