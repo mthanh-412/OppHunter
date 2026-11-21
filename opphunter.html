@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OppHunter – Tìm học bổng</title>
+<style>
+:root{--bg1:#fdfdfd;--bg2:#eeeeee;--side:#eeeeee;--card:#ffffff;--line:#d6d6d6;--mut:#807587;--soft:#b8abc2;--ink:#1c1822;--accent:#4b3a9e;--accent2:#9b4a8c;--chip:#e3e3e3;--shadow:0 1px 2px rgba(40,30,60,.06);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg1:#1d1a22;--bg2:#15131a;--side:#17151c;--card:#26222d;--line:#3a3544;--mut:#a89db3;--soft:#6b5f78;--ink:#f1eef5;--accent:#8f7bf0;--accent2:#d48ac4;--chip:#332e3b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg1:#1d1a22;--bg2:#15131a;--side:#17151c;--card:#26222d;--line:#3a3544;--mut:#a89db3;--soft:#6b5f78;--ink:#f1eef5;--accent:#8f7bf0;--accent2:#d48ac4;--chip:#332e3b;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg2);color:var(--ink);overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.app{display:flex;height:100%}
+aside{width:272px;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:14px;gap:10px;transition:transform .25s}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;padding:4px 6px}
+.logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#fff;font-size:15px}
+.new{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-size:14px;font-weight:600;box-shadow:var(--shadow)}
+.new:hover{border-color:var(--soft)}
+.lbl{font-size:12px;color:var(--mut);padding:8px 6px 2px;text-transform:uppercase;letter-spacing:.04em}
+#hist{flex:1;overflow:auto;display:flex;flex-direction:column;gap:2px}
+.h{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 10px;border-radius:10px;font-size:14px;text-align:left;width:100%}
+.h span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h:hover,.h.on{background:var(--chip)}
+.h .x{opacity:0;font-size:16px;color:var(--mut);padding:0 4px}
+.h:hover .x{opacity:1}
+.empty{font-size:13px;color:var(--mut);padding:8px 10px}
+main{flex:1;display:flex;flex-direction:column;min-width:0;background:linear-gradient(180deg,var(--bg1),var(--bg2))}
+.top{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;gap:8px}
+.burger{display:none;font-size:20px;padding:4px 8px}
+.tools{display:flex;gap:8px;margin-left:auto}
+.pill{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600}
+.pill:hover{border-color:var(--soft)}
+#scroll{flex:1;overflow:auto;padding:0 18px}
+.wrap{max-width:760px;margin:0 auto;width:100%}
+.hero{padding:9vh 0 10px}
+.hero h1{margin:0;font-size:clamp(28px,5vw,40px);line-height:1.15;letter-spacing:-.02em}
+.hero h1 .g{background:linear-gradient(90deg,var(--accent2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--mut);margin:10px 0 18px;font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.q{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left;font-size:13.5px;line-height:1.4;min-height:104px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;box-shadow:var(--shadow)}
+.q:hover{border-color:var(--soft);transform:translateY(-1px)}
+.q i{font-style:normal;font-size:16px}
+.refresh{margin:14px 0;font-size:13px;color:var(--mut);display:inline-flex;gap:6px;align-items:center}
+.refresh:hover{color:var(--accent)}
+.msg{display:flex;margin:18px 0;gap:10px}
+.msg.u{justify-content:flex-end}
+.bub{max-width:88%;padding:11px 14px;border-radius:16px;font-size:14.5px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word}
+.u .bub{background:linear-gradient(135deg,var(--accent),#6a4fb8);color:#fff;border-bottom-right-radius:5px}
+.b .bub{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px;box-shadow:var(--shadow)}
+.av{width:28px;height:28px;flex:none;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:grid;place-items:center;font-size:14px}
+.cards{display:flex;flex-direction:column;gap:10px;margin-top:10px;white-space:normal}
+.sc{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg1)}
+.sc h4{margin:0 0 2px;font-size:14.5px}
+.sc .o{font-size:12.5px;color:var(--mut)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{background:var(--chip);border-radius:999px;padding:3px 9px;font-size:12px}
+.sc dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px}
+.sc dt{color:var(--mut)}.sc dd{margin:0}
+.sc a{display:inline-block;margin-top:10px;font-size:13px;font-weight:600;color:var(--accent);text-decoration:none}
+.sc a:hover{text-decoration:underline}
+.src{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12.5px;color:var(--mut)}
+.src div{margin-top:3px}
+.src a{color:var(--accent);text-decoration:none;font-weight:600}
+.src a:hover{text-decoration:underline}
+sup.c{color:var(--accent);font-weight:700;margin-left:1px}
+.dots{display:inline-flex;gap:4px;padding:4px 0}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--soft);animation:b 1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.3}40%{opacity:1}}
+.comp{padding:10px 18px 14px}
+.box{max-width:760px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:10px 10px 10px 16px;display:flex;align-items:flex-end;gap:10px;box-shadow:var(--shadow)}
+.box:focus-within{border-color:var(--accent)}
+textarea{flex:1;border:0;outline:0;resize:none;background:transparent;font:inherit;font-size:15px;color:var(--ink);max-height:140px;padding:8px 0;line-height:1.4}
+textarea::placeholder{color:var(--mut)}
+.send{width:36px;height:36px;border-radius:10px;background:var(--accent);color:#fff;font-size:16px;flex:none}
+.send:disabled{opacity:.4;cursor:default}
+.note{max-width:760px;margin:8px auto 0;text-align:center;font-size:12px;color:var(--mut)}
+.mask{display:none}
+@media (max-width:760px){
+ aside{position:fixed;z-index:20;left:0;top:0;bottom:0;transform:translateX(-100%);padding-top:calc(14px + env(safe-area-inset-top,0px))}
+ aside.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.25)}
+ .mask.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10}
+ .burger{display:block}
+ .hero{padding-top:4vh}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside id="side">
+ <div class="brand"><div class="logo">✦</div>OppHunter</div>
+ <button class="new" id="newBtn">＋ <span data-t="new"></span></button>
+ <div class="lbl" data-t="history"></div>
+ <div id="hist"></div>
+</aside>
+<div class="mask" id="mask"></div>
+<main>
+ <div class="top">
+  <button class="burger" id="burger" aria-label="Menu">☰</button>
+  <div class="tools">
+   <button class="pill" id="theme" aria-label="Theme">◐</button>
+   <button class="pill" id="lang">EN</button>
+  </div>
+ </div>
+ <div id="scroll"><div class="wrap" id="chat"></div></div>
+ <div class="comp">
+  <div class="box">
+   <textarea id="inp" rows="1"></textarea>
+   <button class="send" id="send" aria-label="Send">➤</button>
+  </div>
+  <div class="note" data-t="note"></div>
+ </div>
+</main>
+</div>
+<script>
+// ====== CẤU HÌNH API ======
+// Điền URL backend của bạn để dùng API thật. Để trống = dùng dữ liệu mẫu.
+// Backend (api.py) nhận POST {message, lang, history} và trả JSON {answer, status, sources:[{id, title, link}]}
+// Lưu ý: trang đăng qua Claude chặn gọi API ngoài; hãy tải file này về và tự host (GitHub Pages, Netlify, Vercel...) để gọi được.
+var API_URL = "http://localhost:8000/chat";
+
+var T = {
+ vi:{new:"Cuộc trò chuyện mới",history:"Lịch sử",none:"Chưa có cuộc trò chuyện nào",hi:"Chào bạn,",ask:"Bạn muốn tìm học bổng nào?",sub:"Chọn một gợi ý bên dưới hoặc tự đặt câu hỏi của bạn.",refresh:"Làm mới gợi ý",ph:"Hỏi bất cứ điều gì về học bổng…",note:"Thông tin chỉ mang tính tham khảo. Hãy kiểm tra trên trang chính thức trước khi nộp hồ sơ.",level:"Bậc học",value:"Giá trị",deadline:"Hạn nộp",more:"Xem trang chính thức →",found:"Mình tìm được %n học bổng phù hợp với yêu cầu của bạn:",fallback:"Mình chưa rõ yêu cầu cụ thể, bạn thử nói thêm quốc gia, bậc học hoặc ngành nhé. Trước mắt đây là vài học bổng phổ biến:",err:"Có lỗi khi kết nối máy chủ, mình hiển thị kết quả mẫu thay thế:",untitled:"Cuộc trò chuyện mới",busy:"Bạn hỏi hơi nhanh hoặc hệ thống đang quá tải, vui lòng thử lại sau ít phút.",srcl:"Nguồn"},
+ en:{new:"New chat",history:"History",none:"No conversations yet",hi:"Hi there,",ask:"What scholarship are you looking for?",sub:"Pick a suggestion below or ask your own question.",refresh:"Refresh prompts",ph:"Ask anything about scholarships…",note:"For reference only. Always verify details on the official website before applying.",level:"Level",value:"Value",deadline:"Deadline",more:"Official website →",found:"I found %n scholarships matching your request:",fallback:"I’m not sure what you need yet. Try adding a country, degree level or field. Meanwhile, here are some popular ones:",err:"Couldn’t reach the server, so here are sample results instead:",untitled:"New chat",busy:"You’re asking too fast or the system is busy. Please try again in a few minutes.",srcl:"Sources"}
+};
+var S = [
+ {id:"chev",name:"Chevening",org:"UK Government",c:{vi:"Anh",en:"United Kingdom"},k:["uk","anh","chevening","vuong quoc anh"],lv:["master"],v:{vi:"Học phí, sinh hoạt phí, vé máy bay",en:"Tuition, living stipend, flights"},d:{vi:"Khoảng tháng 10–11 hằng năm",en:"Around Oct–Nov each year"},l:"https://www.chevening.org"},
+ {id:"fulb",name:"Fulbright Vietnam",org:"Fulbright Program",c:{vi:"Mỹ",en:"United States"},k:["my","us","usa","fulbright","america","hoa ky"],lv:["master","phd"],v:{vi:"Toàn phần",en:"Fully funded"},d:{vi:"Khoảng giữa năm",en:"Around mid-year"},l:"https://www.fulbright.edu.vn"},
+ {id:"mext",name:"MEXT",org:"Japan MEXT",c:{vi:"Nhật Bản",en:"Japan"},k:["nhat","japan","mext","nhat ban"],lv:["bachelor","master","phd"],v:{vi:"Toàn phần + trợ cấp hằng tháng",en:"Full funding + monthly allowance"},d:{vi:"Thường mở đầu năm",en:"Usually early in the year"},l:"https://www.studyinjapan.go.jp"},
+ {id:"daad",name:"DAAD",org:"German Academic Exchange Service",c:{vi:"Đức",en:"Germany"},k:["duc","germany","daad","german"],lv:["master","phd"],v:{vi:"Trợ cấp hằng tháng + bảo hiểm",en:"Monthly stipend + insurance"},d:{vi:"Tùy chương trình",en:"Varies by programme"},l:"https://www.daad.de"},
+ {id:"erasmus",name:"Erasmus Mundus",org:"European Union",c:{vi:"Châu Âu",en:"Europe"},k:["chau au","europe","erasmus","eu","phap","france"],lv:["master"],v:{vi:"Toàn phần (học nhiều nước)",en:"Fully funded (multi-country)"},d:{vi:"Khoảng tháng 1–2",en:"Around Jan–Feb"},l:"https://erasmus-plus.ec.europa.eu"},
+ {id:"aa",name:"Australia Awards",org:"Australian Government",c:{vi:"Úc",en:"Australia"},k:["uc","australia","australian"],lv:["master","phd"],v:{vi:"Học phí + sinh hoạt phí + bảo hiểm",en:"Tuition + living costs + insurance"},d:{vi:"Khoảng đầu năm",en:"Around early year"},l:"https://www.dfat.gov.au/people-to-people/australia-awards"},
+ {id:"gks",name:"GKS (Korean Government)",org:"NIIED Korea",c:{vi:"Hàn Quốc",en:"South Korea"},k:["han","korea","gks","han quoc","korean"],lv:["bachelor","master","phd"],v:{vi:"Toàn phần + học tiếng Hàn",en:"Full funding + Korean language"},d:{vi:"Khoảng tháng 2–3",en:"Around Feb–Mar"},l:"https://www.studyinkorea.go.kr"}
+];
+var LV = {bachelor:{vi:"Cử nhân",en:"Bachelor"},master:{vi:"Thạc sĩ",en:"Master"},phd:{vi:"Tiến sĩ",en:"PhD"}};
+var LVK = {bachelor:["cu nhan","dai hoc","bachelor","undergrad"],master:["thac si","master","msc","ma "],phd:["tien si","phd","doctor"]};
+var P = [
+ {vi:"Học bổng toàn phần thạc sĩ ở châu Âu",en:"Fully funded master’s scholarships in Europe",i:"🌍"},
+ {vi:"Học bổng chính phủ Nhật Bản cho sinh viên",en:"Japanese government scholarships for students",i:"🎌"},
+ {vi:"Học bổng tiến sĩ ở Mỹ hoặc Đức",en:"PhD scholarships in the US or Germany",i:"🎓"},
+ {vi:"Học bổng Chevening cần điều kiện gì?",en:"What are Chevening’s requirements?",i:"📝"},
+ {vi:"Học bổng cử nhân ở Hàn Quốc",en:"Bachelor scholarships in South Korea",i:"🇰🇷"},
+ {vi:"Học bổng thạc sĩ ở Úc",en:"Master’s scholarships in Australia",i:"🦘"},
+ {vi:"Gợi ý học bổng cho sinh viên Việt Nam",en:"Scholarships for Vietnamese students",i:"🇻🇳"},
+ {vi:"Học bổng toàn phần dễ xin nhất?",en:"Which fully funded scholarships are most accessible?",i:"✨"}
+];
+var lang = "vi", chats = [], cur = null, busy = false, pOff = 0;
+var $ = function(id){return document.getElementById(id)};
+function load(){try{chats=JSON.parse(localStorage.getItem("oh_chats")||"[]");lang=localStorage.getItem("oh_lang")||lang;var th=localStorage.getItem("oh_theme");if(th)document.documentElement.setAttribute("data-theme",th)}catch(e){}}
+function save(){try{localStorage.setItem("oh_chats",JSON.stringify(chats.slice(0,40)));localStorage.setItem("oh_lang",lang)}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function norm(s){return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d")}
+function t(k){return T[lang][k]}
+function applyLang(){
+ document.documentElement.lang=lang;
+ document.querySelectorAll("[data-t]").forEach(function(e){e.textContent=t(e.dataset.t)});
+ $("inp").placeholder=t("ph");$("lang").textContent=lang==="vi"?"EN":"VI";
+ renderHist();renderChat();
+}
+function renderHist(){
+ var h=$("hist");
+ if(!chats.length){h.innerHTML='<div class="empty">'+esc(t("none"))+'</div>';return}
+ h.innerHTML=chats.map(function(c){return '<div class="h'+(c.id===cur?' on':'')+'" data-id="'+c.id+'" role="button" tabindex="0"><span>'+esc(c.title||t("untitled"))+'</span><button class="x" data-del="'+c.id+'" aria-label="Delete">×</button></div>'}).join("");
+}
+function card(s){
+ var lv=s.lv.map(function(x){return '<span class="chip">'+esc(LV[x][lang])+'</span>'}).join("");
+ return '<div class="sc"><h4>'+esc(s.name)+'</h4><div class="o">'+esc(s.org)+' · '+esc(s.c[lang])+'</div><div class="chips">'+lv+'</div><dl><dt>'+t("value")+'</dt><dd>'+esc(s.v[lang])+'</dd><dt>'+t("deadline")+'</dt><dd>'+esc(s.d[lang])+'</dd></dl><a href="'+esc(s.l)+'" target="_blank" rel="noopener noreferrer">'+t("more")+'</a></div>';
+}
+function fmt(txt,src){
+ var h=esc(txt);
+ return h.replace(/\s*\[c:([^\]]+)\]/g,function(_,id){var d=id.split("#")[0],i=-1;src.forEach(function(s,k){if(s.id===d)i=k});return i<0?"":'<sup class="c">['+(i+1)+']</sup>'});
+}
+function srcHTML(src){
+ if(!src||!src.length)return "";
+ return '<div class="src">'+esc(t("srcl"))+':'+src.map(function(s,i){var l=/^https?:\/\//.test(s.link||"")?'<a href="'+esc(s.link)+'" target="_blank" rel="noopener noreferrer">'+esc(s.title)+' ↗</a>':esc(s.title);return '<div>['+(i+1)+'] '+l+'</div>'}).join("")+'</div>';
+}
+function msgHTML(m){
+ if(m.role==="user")return '<div class="msg u"><div class="bub">'+esc(m.text)+'</div></div>';
+ var txt=m.key?t(m.key).replace("%n",(m.ids||[]).length):m.text;
+ var cs=(m.ids||[]).map(function(id){return S.filter(function(s){return s.id===id})[0]}).filter(Boolean).map(card).join("");
+ if(m.ext)cs+=m.ext.map(function(s){return card({name:s.name,org:s.org||"",c:{vi:s.country||"",en:s.country||""},lv:(s.levels||[]).filter(function(x){return LV[x]}),v:{vi:s.value||"",en:s.value||""},d:{vi:s.deadline||"",en:s.deadline||""},l:/^https?:\/\//.test(s.link||"")?s.link:"#"})}).join("");
+ return '<div class="msg b"><div class="av">✦</div><div class="bub">'+(m.src?fmt(txt,m.src):esc(txt))+(cs?'<div class="cards">'+cs+'</div>':'')+srcHTML(m.src)+'</div></div>';
+}
+function renderChat(){
+ var c=chats.filter(function(x){return x.id===cur})[0],h="";
+ if(!c||!c.msgs.length){
+  var ps=[0,1,2,3].map(function(i){return P[(pOff+i)%P.length]});
+  h='<div class="hero"><h1>'+t("hi")+' <span class="g">'+(lang==="vi"?"bạn":"friend")+'</span><br>'+t("ask")+'</h1><p>'+t("sub")+'</p><div class="grid">'+ps.map(function(p){return '<button class="q" data-q="'+esc(p[lang])+'">'+esc(p[lang])+'<i>'+p.i+'</i></button>'}).join("")+'</div><button class="refresh" id="ref">↻ '+t("refresh")+'</button></div>';
+ }else h=c.msgs.map(msgHTML).join("");
+ $("chat").innerHTML=h;
+ var sc=$("scroll");sc.scrollTop=sc.scrollHeight;
+}
+function mock(q){
+ var n=norm(q)+" ",sel=null;
+ Object.keys(LVK).forEach(function(k){if(LVK[k].some(function(w){return n.indexOf(w)>-1}))sel=k});
+ var full=/toan phan|full|fully/.test(n);
+ var sc=S.map(function(s){var p=0;s.k.forEach(function(w){if(n.indexOf(w)>-1)p+=3});if(sel&&s.lv.indexOf(sel)>-1)p+=1;if(full&&/Toàn|Full|full/.test(s.v.vi+s.v.en))p+=1;if(sel&&s.lv.indexOf(sel)<0)p-=2;return {s:s,p:p}}).filter(function(x){return x.p>0}).sort(function(a,b){return b.p-a.p}).slice(0,3);
+ if(!sc.length)return {key:"fallback",ids:S.slice(0,3).map(function(s){return s.id})};
+ return {key:"found",ids:sc.map(function(x){return x.s.id})};
+}
+function ask(q){
+ q=q.trim();if(!q||busy)return;
+ var c=chats.filter(function(x){return x.id===cur})[0];
+ if(!c){c={id:"c"+Date.now(),title:q.slice(0,42),msgs:[]};chats.unshift(c);cur=c.id}
+ c.msgs.push({role:"user",text:q});busy=true;$("send").disabled=true;$("inp").value="";grow();
+ renderHist();renderChat();
+ $("chat").insertAdjacentHTML("beforeend",'<div class="msg b" id="typing"><div class="av">✦</div><div class="bub"><span class="dots"><i></i><i></i><i></i></span></div></div>');
+ $("scroll").scrollTop=$("scroll").scrollHeight;
+ var done=function(r){var ty=$("typing");if(ty)ty.remove();r.role="bot";c.msgs.push(r);busy=false;$("send").disabled=false;save();renderChat();$("inp").focus()};
+ var hist=c.msgs.slice(0,-1).map(function(m){return {role:m.role,text:m.text||""}});
+ if(API_URL){
+  fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:q,lang:lang,history:hist})})
+   .then(function(r){if(!r.ok)throw r.status;return r.json()}).then(function(d){done({text:d.answer||"",src:d.sources||[]})})
+   .catch(function(e){if(e===429){done({text:t("busy")});return}var m=mock(q);m.key=null;m.text=t("err");done(m)});
+ }else setTimeout(function(){done(mock(q))},700+Math.random()*500);
+}
+function grow(){var i=$("inp");i.style.height="auto";i.style.height=Math.min(i.scrollHeight,140)+"px"}
+function closeSide(){$("side").classList.remove("open");$("mask").classList.remove("open")}
+$("send").onclick=function(){ask($("inp").value)};
+$("inp").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();ask($("inp").value)}});
+$("inp").addEventListener("input",grow);
+$("lang").onclick=function(){lang=lang==="vi"?"en":"vi";save();applyLang()};
+$("theme").onclick=function(){var d=document.documentElement,dark=d.getAttribute("data-theme")==="dark"||(!d.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme:dark)").matches);var n=dark?"light":"dark";d.setAttribute("data-theme",n);try{localStorage.setItem("oh_theme",n)}catch(e){}};
+$("newBtn").onclick=function(){cur=null;renderHist();renderChat();closeSide();$("inp").focus()};
+$("burger").onclick=function(){$("side").classList.add("open");$("mask").classList.add("open")};
+$("mask").onclick=closeSide;
+$("hist").onclick=function(e){
+ var d=e.target.closest("[data-del]");
+ if(d){chats=chats.filter(function(c){return c.id!==d.dataset.del});if(cur===d.dataset.del)cur=null;save();renderHist();renderChat();return}
+ var h=e.target.closest("[data-id]");if(h){cur=h.dataset.id;renderHist();renderChat();closeSide()}
+};
+$("chat").onclick=function(e){
+ var q=e.target.closest("[data-q]");if(q){ask(q.dataset.q);return}
+ if(e.target.closest("#ref")){pOff=(pOff+4)%P.length;renderChat()}
+};
+load();applyLang();
+</script>
+</body>
+</html>

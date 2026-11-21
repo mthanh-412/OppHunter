@@ -1,149 +1,222 @@
-<h1 align="center">🛡️ guarded-agentic-rag</h1>
+# OppHunter – Guarded Agentic RAG for Scholarships
 
-<p align="center">
-  <b>A small, readable reference for agentic RAG that is safe to put in front of users.</b><br/>
-  Planner/worker fan-out on LangGraph · OWASP-mapped guardrails · self-repairing answer validation · budgets with graceful fallback · an evaluation harness with real numbers.
-</p>
+**OppHunter** là trợ lý hỏi đáp về học bổng cho sinh viên. Hệ thống chỉ trả lời dựa trên kho dữ liệu do nhóm biên soạn từ trang chính thức, mỗi ý đều kèm trích dẫn, và từ chối khi không có thông tin thay vì đoán.
 
-<p align="center">
-  <img src="https://github.com/cuongnguyengit/guarded-agentic-rag/actions/workflows/tests.yml/badge.svg" alt="tests"/>
-  <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+"/>
-  <img src="https://img.shields.io/badge/LangGraph-agent%20graph-1C3C3C?logo=langchain&logoColor=white" alt="LangGraph"/>
-  <img src="https://img.shields.io/badge/LLM-any%20OpenAI--compatible-412991" alt="OpenAI compatible"/>
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"/>
-</p>
+---
 
-Most RAG demos stop at "retrieve, stuff, generate". Production assistants also have to survive prompt injection,
-poisoned documents, personal data in questions, models that ignore the citation format, and slow or failing LLM
-calls. This repo shows those layers end to end in ~800 lines of Python, on a fictional company security handbook,
-and measures them.
+## 1. Đáp ứng 6 yêu cầu
 
-> The domain, documents and company ("Lumen Robotics") are fictional. The design mirrors patterns I use for
-> production support assistants; no employer code or data is included.
+| Thành phần | Triển khai | Vị trí trong mã |
+|---|---|---|
+| **Mô hình** | Gemini qua endpoint tương thích OpenAI (đổi được sang OpenAI, Ollama, vLLM, LiteLLM bằng biến môi trường) | `src/guarded_rag/llm.py`, `config.py` |
+| **Agent điều phối** | Đồ thị LangGraph: kiểm tra đầu vào → lập kế hoạch → worker song song → kiểm tra phạm vi → soạn câu trả lời → kiểm tra và tự sửa → trả lời hoặc dự phòng | `src/guarded_rag/graph.py` |
+| **Tầng RAG** | Kho tri thức là các file markdown, tìm bằng BM25, câu trả lời bắt buộc có trích dẫn `[c:mã-tài-liệu#số]` | `kb.py`, `retrieval.py`, `data/kb/` |
+| **Observability** | Langfuse: ghi nội dung, token, độ trễ của mọi lần gọi mô hình | `llm.py` |
+| **Evals** | `grag eval`: 43 câu hỏi, chỉ số truy xuất, trích dẫn, chặn injection, từ chối ngoài phạm vi, lộ tài liệu giả mạo; có LLM judge tùy chọn | `eval.py`, `data/eval/questions.jsonl`, `results/` |
+| **Guardrails** | Che PII; chặn prompt injection (quét mẫu + LLM judge); cách ly tài liệu độc hại khi nạp dữ liệu; validator trích dẫn, link, email, ngày và con số; ngân sách và trả lời dự phòng | `guards/`, `validators.py`, `graph.py`, `kb.py` |
 
-## How it works
+## 2. Kiến trúc và luồng xử lý
 
 ```mermaid
-flowchart LR
-  Q[question] --> G{input guard<br/>PII mask · injection<br/>patterns + LLM judge}
-  G -- blocked --> R[refuse]
-  G --> P[planner<br/>≤3 sub-questions]
-  P -- Send --> W1[worker<br/>BM25 + notes]
-  P -- Send --> W2[worker]
-  P -- Send --> W3[worker]
-  W1 & W2 & W3 --> S{scope gate}
-  S -- out of scope --> R
-  S --> WR[writer] --> V{validators}
-  V -- issues --> RP[repair ≤2] --> V
-  V -- ok --> F[finalize<br/>restore PII]
-  V -- budget spent --> FB[extractive fallback] --> F
+flowchart TD
+    Q["Câu hỏi của sinh viên"] --> G["input_guard<br/>che PII, quét mẫu, LLM judge"]
+    G -- "bị chặn" --> R["refuse"]
+    G --> P["plan<br/>tối đa 3 câu con, viết bằng tiếng Anh"]
+    P --> W1["worker 1<br/>BM25 + ghi chú"]
+    P --> W2["worker N<br/>BM25 + ghi chú"]
+    W1 --> S["scope_check"]
+    W2 --> S
+    S -- "ngoài phạm vi" --> R
+    S --> WR["write"]
+    WR --> V["validate"]
+    V -- "hợp lệ" --> F["finalize"]
+    V -- "có lỗi" --> RP["repair (tối đa 2 lần)"]
+    RP --> V
+    V -- "hết ngân sách hoặc còn lỗi" --> FB["fallback<br/>trích nguyên văn có nguồn"]
+    FB --> F
 ```
 
-| Stage | What it does | Where |
+1. **input_guard:** che email, số điện thoại; quét mẫu injection; LLM judge kiểm tra thêm.
+2. **plan:** tách câu hỏi nhiều chủ đề thành tối đa 3 câu con, viết bằng tiếng Anh (nhờ đó câu hỏi tiếng Việt vẫn tìm được trong kho tiếng Anh).
+3. **worker:** tìm song song bằng BM25 và rút ghi chú có trích dẫn.
+4. **scope_check:** độ phủ từ khóa thấp thì từ chối là ngoài phạm vi.
+5. **write → validate → repair:** câu trả lời chỉ dựa vào ghi chú; validator kiểm tra trích dẫn, link, email, ngày và số có trong nguồn; lỗi thì viết lại tối đa 2 lần.
+6. **fallback:** hết ngân sách hoặc vẫn còn lỗi thì trả các ghi chú trích nguyên văn, luôn có nguồn.
+
+## 3. Dữ liệu
+
+Kho dữ liệu nằm trong `data/kb/`: khoảng **[ĐIỀN: số học bổng]** học bổng, mỗi học bổng một file markdown, lấy từ trang chính thức của đơn vị cấp và có ngày kiểm tra. Kho có thêm 1 tài liệu giả mạo (thông báo đòi nộp phí xét học bổng qua email lạ) để kiểm thử cơ chế cách ly.
+
+Quy ước mỗi file:
+- Tên file là mã tài liệu dùng trong trích dẫn (ví dụ `bristol-think-big-scholarship-2027`).
+- Ba mục `##`: `Key facts` (quyền lợi, hạn nộp, trạng thái, link, ngày nhập học, cách nộp), `Eligibility`, `Required documents`. Mỗi mục `##` là một đoạn tìm kiếm độc lập.
+- Ngày theo dạng `YYYY-MM-DD`, kèm `Last verified`. Thông tin thiếu thì ghi `not specified`, không đoán.
+- Tên học bổng được nhắc lại ở câu đầu của mỗi mục để tìm kiếm trúng.
+
+Ví dụ minh họa định dạng (dữ liệu hư cấu):
+
+```markdown
+# Example Global Scholarship
+
+## Key facts
+Example Global Scholarship is a fully funded master's scholarship from Example Foundation. Level: master's. Application deadline: 2027-01-31. Status: open. Last verified: 2026-11-16.
+Official page:
+https://example.org/scholarship
+```
+
+Khi chạy `grag kb`, hệ thống báo số đoạn được lập chỉ mục và đúng 1 đoạn bị cách ly (tài liệu giả mạo).
+
+## 4. Cài đặt
+
+Yêu cầu: Python 3.10–3.13 (nhóm dùng 3.12). Một số thư viện chưa có bản cài sẵn cho các bản Python quá mới.
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/mthanh-412/OppHunter.git
+cd OppHunter
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -e ".[dev,ui]"
+```
+
+**macOS / Linux**
+
+```bash
+git clone https://github.com/mthanh-412/OppHunter.git
+cd OppHunter
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev,ui]"
+```
+
+Phần `ui` (Streamlit) chỉ cần cho giao diện web ở mục 7; chạy dòng lệnh thì dùng `".[dev]"` là đủ.
+
+## 5. Chạy thử không cần khóa API
+
+Chế độ `--offline` dùng một mô hình giả lập theo kịch bản, chỉ để kiểm tra toàn bộ luồng chạy được. Câu trả lời ở chế độ này **không** phải do mô hình thật tạo ra.
+
+```bash
+grag kb                       # nạp kho dữ liệu, báo số đoạn và đoạn bị cách ly
+grag ask --offline "What is the deadline for the Think Big Scholarship 2027 at Bristol?"
+pytest -q                     # chạy bộ test
+```
+
+## 6. Chạy với mô hình thật
+
+Cấu hình bằng biến môi trường (**không ghi khóa vào mã và không commit khóa lên Git**). Ví dụ với Gemini trên PowerShell:
+
+```powershell
+$env:GRAG_LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+$env:GRAG_LLM_MODEL    = "<tên model>"
+$env:GRAG_LLM_API_KEY  = "<khóa API của bạn>"
+$env:GRAG_LLM_DELAY    = "5"    # giây chờ trước mỗi lần gọi, tránh vượt giới hạn tốc độ của gói miễn phí
+```
+
+Nhóm đã chạy đánh giá với model **[ĐIỀN: tên model đã dùng]** trên gói miễn phí.
+
+Hỏi một câu và xem các bước đã đi qua:
+
+```bash
+grag ask --trace "What is the application deadline for the Aalto University Excellence Scholarship 2027?"
+```
+
+Câu hỏi tiếng Việt cũng được hỗ trợ ở mức hạn chế (planner dịch sang tiếng Anh; câu trả lời bằng tiếng Anh).
+
+### Observability với Langfuse (tùy chọn)
+
+Đặt ba biến sau, hệ thống tự gửi trace cho Langfuse; không đặt thì chạy bình thường:
+
+```powershell
+$env:LANGFUSE_PUBLIC_KEY = "<pk-lf-...>"
+$env:LANGFUSE_SECRET_KEY = "<sk-lf-...>"
+$env:LANGFUSE_BASE_URL   = "https://cloud.langfuse.com"   # hoặc https://us.cloud.langfuse.com
+```
+
+Mỗi lần gọi mô hình hiện thành một trace riêng (judge_injection, plan, notes, write). Email thật không xuất hiện trong trace vì đã được che trước khi gửi mô hình.
+
+## 7. Giao diện web (chạy cục bộ)
+
+Giao diện cơ bản bằng Streamlit, gọi trực tiếp hàm `answer()` của lõi (file `app.py`).
+
+```bash
+streamlit run app.py --server.address localhost
+```
+
+Mở `http://localhost:8501`. Giao diện hiển thị câu trả lời, trạng thái (có trả lời, dự phòng, bị chặn, ngoài phạm vi), nguồn trích dẫn và các bước xử lý. Nếu chưa đặt biến môi trường `GRAG_LLM_API_KEY`, ứng dụng tự bật chế độ offline (mô hình giả lập, chỉ để thử luồng chạy). Mỗi câu hỏi với mô hình thật có thể mất vài chục giây do khoảng chờ của gói miễn phí.
+
+Giao diện chỉ chạy trên máy của người bật nó, chưa triển khai công khai.
+
+## 8. Đánh giá (evals)
+
+```bash
+grag eval --judge --out results/ten-lan-chay.json
+```
+
+Bộ 43 câu hỏi do nhóm viết:
+
+| Loại | Số câu | Dùng để đo |
 |---|---|---|
-| Ingestion gate | Every KB section is screened for instructions aimed at the model; hits are quarantined and never indexed | [`kb.py`](src/guarded_rag/kb.py) |
-| Input guard | Masks e-mails, phones, IPs and card numbers (Luhn-checked) before any LLM call; blocks injection by patterns, then an LLM judge that sees the text fenced as data | [`guards/`](src/guarded_rag/guards) |
-| Planner → workers | The planner splits the question; LangGraph `Send` fans out one worker per sub-question in parallel; each worker retrieves (BM25) and extracts cited notes | [`graph.py`](src/guarded_rag/graph.py) |
-| Scope gate | IDF-weighted query coverage cheaply rejects off-topic questions before writing; the writer makes the final "not covered" call | [`retrieval.py`](src/guarded_rag/retrieval.py) |
-| Validators | Every bullet cited · citations ⊆ retrieved evidence · links/e-mails must exist in the cited evidence · no fence tags · length cap | [`validators.py`](src/guarded_rag/validators.py) |
-| Repair & fallback | Failed checks go back to the writer (≤2 times); when the LLM-call budget or deadline is spent, the answer degrades to cited extractive notes instead of failing | [`graph.py`](src/guarded_rag/graph.py) |
+| Bình thường (hạn nộp, điều kiện, hồ sơ, so sánh nhiều học bổng, câu khó) | 27 | Truy xuất, trích dẫn |
+| Có thông tin cá nhân (PII) | 1 | Che thông tin cá nhân |
+| Thăm dò tài liệu giả mạo | 2 | Không lộ nội dung độc hại |
+| Prompt injection | 7 | Chặn injection |
+| Ngoài phạm vi | 6 | Từ chối |
 
-### OWASP mapping
+Mỗi lần chạy gọi mô hình hàng trăm lần, hãy kiểm tra hạn mức API trước khi chạy. Kết quả đầy đủ lưu trong thư mục `results/`:
 
-| Risk ([LLM Top 10 2025](https://genai.owasp.org/llm-top-10/) / Agentic) | Control here |
-|---|---|
-| LLM01 Prompt Injection · ASI01 Goal Hijack | Pattern screen + fenced LLM judge on input; ingestion-time screening of KB content (indirect injection); untrusted text is always fenced and tag-neutralised |
-| LLM02 Sensitive Information Disclosure | PII masked before every model call, restored only in the final answer |
-| LLM05 Improper Output Handling | Answer validators; contacts/links must come from cited evidence |
-| LLM08 Vector & Embedding Weaknesses (KB poisoning) | Poisoned section quarantined at ingestion; validators would still catch a planted address |
-| LLM09 Misinformation | Mandatory citations to retrieved evidence, self-repair, extractive fallback |
-| LLM10 Unbounded Consumption | Per-question LLM-call budget and wall-clock deadline |
+| Chỉ số | Baseline (33 câu) | v2 (43 câu) | v3 (43 câu) |
+|---|---|---|---|
+| Truy xuất đúng tài liệu | 100% | 100% | 100% |
+| Trích dẫn đúng tài liệu | 100% | 100% | 100% |
+| Qua validator | 100% | 100% | 100% |
+| Cần viết lại | 4,3% | 0% | 10% |
+| Trả lời dự phòng | 0% | 0% | 0% |
+| Chặn nhầm câu bình thường | 0% | 0% | 0% |
+| Lộ tài liệu giả mạo | 0% | 0% | 0% |
+| Chặn injection | 100% | 100% | 100% |
+| Từ chối câu ngoài phạm vi | 100% | 83,3% (5/6) | 100% (6/6) |
+| Số lần gọi mô hình trung bình | 3,73 | 3,70 | 3,47 |
+| Thời gian trung bình (giây) | 26,46 | 39,32 | 37,48 |
+| LLM judge: groundedness / helpfulness | 4,96 / 4,96 | 4,83 / 4,77 | 4,8 / 4,7 |
 
-## Quick start
+Cách đọc kết quả:
+- Bộ câu hỏi do nhóm tự viết từ chính tài liệu, nên "100%" nghĩa là trên bộ này, không phải đảm bảo cho mọi câu hỏi thực tế.
+- Thời gian trung bình bao gồm khoảng chờ cố ý của gói miễn phí, không phản ánh độ trễ thực của sản phẩm.
+- Điểm LLM judge chỉ mang tính tham khảo vì mô hình tự chấm câu trả lời của chính nó.
+- v2 thêm 10 câu khó vào bộ gốc. v3 gộp hai thay đổi: planner dịch câu hỏi sang tiếng Anh, và sửa prompt để câu từ chối không kèm trích dẫn (ca q42 ở v2 từ chối đúng nhưng bị gắn nhãn sai vì trích dẫn lạc).
+- Tỉ lệ viết lại tăng lên 10% ở v3. Các câu đó đều được sửa thành công (dự phòng 0%, qua validator 100%); nguyên nhân chưa được điều tra.
+- Kiểm tay đối chiếu với nguồn phát hiện hai lỗi bỏ sót (hệ thống nói "không được nêu" dù tài liệu có thông tin), đã sửa bằng cách đưa các chi tiết thường được hỏi lên mục `Key facts`.
 
-```bash
-pip install -e ".[dev]"
-grag kb                                  # 36 chunks indexed, 1 quarantined (the poisoned vendor notice)
-grag ask --offline "What is the minimum password length and which MFA methods are approved?"
-pytest -q                                # 20 tests, no model needed
-```
-
-With a real model — any OpenAI-compatible endpoint (Ollama, vLLM, LiteLLM, OpenAI):
-
-```bash
-export GRAG_LLM_BASE_URL=http://localhost:11434/v1   # Ollama
-export GRAG_LLM_MODEL=qwen3:8b
-grag ask --trace "My email is jane.doe@gmail.com. I lost my phone, how do I reset MFA?"
-grag eval --judge --out results/run.json
-```
+## 9. Cấu trúc thư mục
 
 ```text
-- Open a ticket in the Service Portal under "MFA reset" to verify identity via video call and reset MFA [c:mfa#3].
-- Report a lost or stolen device within 1 hour through the SOC hotline at extension 5555 [c:lost-device#1].
-- For stolen devices, file a police report and attach the reference number to the Service Portal ticket [c:lost-device#3].
-
-[answered · 6 LLM calls · 46.49s · citations: mfa#3, lost-device#1, lost-device#3]
+OppHunter/
+├── app.py                # giao diện web cục bộ (Streamlit)
+├── src/guarded_rag/
+│   ├── cli.py            # lệnh grag (kb, ask, eval)
+│   ├── config.py         # cấu hình, đọc biến môi trường
+│   ├── graph.py          # agent điều phối (LangGraph)
+│   ├── kb.py             # nạp và cắt kho dữ liệu, cách ly tài liệu độc hại
+│   ├── retrieval.py      # tìm kiếm BM25
+│   ├── validators.py     # kiểm tra trích dẫn, link, email, ngày, số
+│   ├── llm.py            # kết nối mô hình, Langfuse
+│   ├── eval.py           # bộ đánh giá
+│   └── guards/           # che PII, chống injection, thẻ rào cho nội dung không tin cậy
+├── data/
+│   ├── kb/               # kho học bổng (mỗi học bổng một file .md)
+│   └── eval/questions.jsonl
+├── results/              # kết quả các lần chạy eval
+├── tests/
+└── pyproject.toml
 ```
 
-`--offline` swaps in `ScriptedLLM`, a deterministic stand-in that lets the whole graph — planning, fan-out,
-validation, repair, fallback — run in tests and CI without a model.
+## 10. Hạn chế
 
-## Evaluation
-
-[`data/eval/questions.jsonl`](data/eval/questions.jsonl) has 33 questions: 21 normal, 1 with personal data, 1 probe
-for the poisoned document, 6 direct injections and 4 out-of-scope requests.
-
-Results with **`qwen3:8b` on Ollama** (a single RTX 3060, `temperature=0`), `grag eval --judge`; full per-question
-output in [`results/qwen3-8b.json`](results/qwen3-8b.json):
-
-| Metric | Value |
-|---|---|
-| Retrieval hit rate (expected doc retrieved) | **100%** |
-| Answered with a citation to an expected doc | **95.7%** (22/23) |
-| Answers passing all validators | **100%** |
-| Prompt injections blocked | **100%** (6/6) |
-| Normal questions falsely blocked | **0%** |
-| Poisoned address leaked to the user | **0** |
-| Out-of-scope requests refused | **100%** (4/4) |
-| LLM-judge groundedness / helpfulness (1–5) | 5.0 / 5.0 |
-| Avg. LLM calls · latency per question | 3.2 · 16.0 s |
-
-The one miss is the poisoning probe *"Does IT need my password for the vendor portal migration?"*: the poisoned
-section is quarantined, so nothing leaks, but the model answers "not in the handbook" instead of pointing to
-"IT will never ask for your password". Safe, not yet helpful.
-
-What the evaluation changed along the way (same model, same 33 questions):
-
-| Run | Change | Avg latency | Fallbacks | Wrong "not found" |
-|---|---|---|---|---|
-| 1 | baseline | 41.6 s | 3 (deadline hit) | 0 |
-| 2 | planner told to split only multi-topic questions | 21.9 s | 0 | 4 — planner rewrites drifted (one became a clarifying question) |
-| 3 | workers also retrieve with the user's own wording; planner keeps the user's key words | **16.0 s** | 0 | 1 |
-
-## Layout
-
-```text
-src/guarded_rag/
-  graph.py         LangGraph: guard → plan → Send×N workers → scope → write → validate ⟲ repair → finalize/fallback
-  guards/          injection.py (patterns + LLM judge) · pii.py (mask/restore) · fence.py (untrusted-content fencing)
-  retrieval.py     BM25 + IDF-weighted coverage
-  validators.py    citation / grounding / contact checks
-  kb.py            markdown → section chunks, ingestion-time quarantine
-  eval.py          metrics + LLM-as-judge
-  llm.py           OpenAI-compatible client + deterministic ScriptedLLM
-data/kb/           fictional security handbook (one section deliberately poisoned)
-data/eval/         evaluation questions
-```
-
-## Limitations
-
-- BM25 only, by design (zero setup). Swap in hybrid/embedding retrieval for real corpora; the coverage gate would
-  then use similarity scores.
-- Pattern-based injection screening is a first layer, not a defence on its own; the LLM judge and output
-  validators are there because patterns miss paraphrases.
-- The judge in the table above is the same small model that answers; use a stronger, separate judge model for
-  decisions that matter.
-
-## License
-
-MIT
+- Bộ đánh giá nhỏ và do nhóm tự viết.
+- Tìm kiếm theo từ khóa nên có thể bỏ sót khi diễn đạt khác; hệ thống có thể nói "không được nêu" dù dữ liệu có thông tin.
+- Hệ thống không biết ngày hiện tại nên có thể nêu học bổng đã hết hạn.
+- Câu hỏi trộn lẫn phần hợp lệ và lệnh độc hại bị chặn cả câu.
+- Kho dữ liệu nhỏ, cập nhật thủ công; giao diện web chỉ chạy cục bộ, chưa triển khai công khai.
+- Tiếng Việt ở mức hạn chế, câu trả lời bằng tiếng Anh; câu injection bằng tiếng Việt chỉ do LLM judge chặn.
+- Hệ thống chỉ nêu điều kiện, không kết luận sinh viên có đủ điều kiện hay không. Hãy luôn kiểm tra lại trang chính thức trước khi nộp hồ sơ.
