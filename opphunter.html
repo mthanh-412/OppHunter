@@ -151,6 +151,7 @@ var lang = "vi", chats = [], cur = null, busy = false, pOff = 0;
 var $ = function(id){return document.getElementById(id)};
 function load(){try{chats=JSON.parse(localStorage.getItem("oh_chats")||"[]");lang=localStorage.getItem("oh_lang")||lang;var th=localStorage.getItem("oh_theme");if(th)document.documentElement.setAttribute("data-theme",th)}catch(e){}}
 function save(){try{localStorage.setItem("oh_chats",JSON.stringify(chats.slice(0,40)));localStorage.setItem("oh_lang",lang)}catch(e){}}
+function localMask(x){return String(x).replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g,"<EMAIL>").replace(/\+?\d[\d\s().-]{7,}\d/g,"<PHONE>")}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function norm(s){return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d")}
 function t(k){return T[lang][k]}
@@ -209,11 +210,11 @@ function ask(q){
  renderHist();renderChat();
  $("chat").insertAdjacentHTML("beforeend",'<div class="msg b" id="typing"><div class="av">✦</div><div class="bub"><span class="dots"><i></i><i></i><i></i></span></div></div>');
  $("scroll").scrollTop=$("scroll").scrollHeight;
- var done=function(r){var ty=$("typing");if(ty)ty.remove();r.role="bot";c.msgs.push(r);busy=false;$("send").disabled=false;save();renderChat();$("inp").focus()};
+ var done=function(r){var ty=$("typing");if(ty)ty.remove();var lu=c.msgs[c.msgs.length-1];if(lu&&lu.role==="user"){lu.text=r.mq||localMask(lu.text);if(c.msgs.length===1)c.title=lu.text.slice(0,42)}delete r.mq;r.role="bot";c.msgs.push(r);busy=false;$("send").disabled=false;save();renderChat();$("inp").focus()};
  var hist=c.msgs.slice(0,-1).map(function(m){return {role:m.role,text:m.text||""}});
  if(API_URL){
   fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:q,lang:lang,history:hist})})
-   .then(function(r){if(!r.ok)throw r.status;return r.json()}).then(function(d){done({text:d.answer||"",src:d.sources||[]})})
+   .then(function(r){if(!r.ok)throw r.status;return r.json()}).then(function(d){done({text:d.answer||"",src:d.sources||[],mq:d.masked_question})})
    .catch(function(e){if(e===429){done({text:t("busy")});return}var m=mock(q);m.key=null;m.text=t("err");done(m)});
  }else setTimeout(function(){done(mock(q))},700+Math.random()*500);
 }

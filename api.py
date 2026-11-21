@@ -1,5 +1,4 @@
-"""API cho giao diện OppHunter. Đặt file này cạnh pyproject.toml.
-
+"""
 Chạy thử:  uvicorn api:app --reload --port 8000
 Triển khai: uvicorn api:app --host 0.0.0.0 --port $PORT
 """
@@ -16,6 +15,7 @@ from pydantic import BaseModel
 
 from guarded_rag.config import Settings
 from guarded_rag.graph import answer
+from guarded_rag.guards.pii import mask
 from guarded_rag.kb import load_kb
 from guarded_rag.llm import OpenAICompatLLM, ScriptedLLM
 
@@ -94,4 +94,6 @@ def chat(r: Req, request: Request):
             continue
         seen.add(doc)
         sources.append({"id": doc, "title": doc.replace("-", " ").title(), "link": LINK.get(doc)})
-    return {"answer": res.answer, "status": res.status, "sources": sources}
+    # Trả về bản câu hỏi đã che PII (hàm mask của lõi) để giao diện chỉ lưu bản này vào lịch sử
+    masked_q, _ = mask(msg)
+    return {"answer": res.answer, "status": res.status, "sources": sources, "masked_question": masked_q}
