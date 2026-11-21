@@ -21,6 +21,9 @@ aside{width:284px;background:var(--sb);color:var(--sbi);display:flex;flex-direct
 .new{display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:10px;border:1px solid var(--sbl);font-size:14px;font-weight:600;text-align:left}
 .new:hover{background:var(--sbh)}
 .lbl{font-size:12px;color:var(--sbm);padding:14px 6px 2px;text-transform:uppercase;letter-spacing:.06em}
+.sq{width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--sbl);background:transparent;color:var(--sbi);font:inherit;font-size:13.5px;outline:0}
+.sq::placeholder{color:var(--sbm)}
+.sq:focus{border-color:var(--sbm)}
 #hist{flex:1;overflow:auto;display:flex;flex-direction:column;gap:2px}
 .h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border-radius:8px;font-size:14px;width:100%;cursor:pointer}
 .h span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -100,6 +103,7 @@ textarea::placeholder{color:var(--mut)}
  <div class="tag" data-t="tag"></div>
  <button class="new" id="newBtn">＋ <span data-t="new"></span></button>
  <div class="lbl" data-t="history"></div>
+ <input class="sq" id="sq" type="text" autocomplete="off">
  <div id="hist"></div>
 </aside>
 <div class="mask" id="mask"></div>
@@ -123,8 +127,8 @@ textarea::placeholder{color:var(--mut)}
 var API_URL = "http://localhost:8000/chat";
 
 var T = {
- vi:{new:"Cuộc trò chuyện mới",history:"Lịch sử",none:"Chưa có cuộc trò chuyện nào",hi:"Chào bạn,",ask:"Bạn muốn tìm học bổng nào?",sub:"Chọn một gợi ý bên dưới hoặc tự đặt câu hỏi của bạn.",refresh:"Làm mới gợi ý",ph:"Hỏi bất cứ điều gì về học bổng…",note:"Thông tin chỉ mang tính tham khảo. Hãy kiểm tra trên trang chính thức trước khi nộp hồ sơ.",level:"Bậc học",value:"Giá trị",deadline:"Hạn nộp",more:"Xem trang chính thức →",found:"Mình tìm được %n học bổng phù hợp với yêu cầu của bạn:",fallback:"Mình chưa rõ yêu cầu cụ thể, bạn thử nói thêm quốc gia, bậc học hoặc ngành nhé. Trước mắt đây là vài học bổng phổ biến:",err:"Có lỗi khi kết nối máy chủ, mình hiển thị kết quả mẫu thay thế:",untitled:"Cuộc trò chuyện mới",busy:"Bạn hỏi hơi nhanh hoặc hệ thống đang quá tải, vui lòng thử lại sau ít phút.",srcl:"Nguồn",tag:"Trợ lý tìm kiếm học bổng",del:"Xóa",send:"Gửi",hint:"Enter để gửi · Shift + Enter xuống dòng",menu:"Menu",dark:"Chế độ tối",light:"Chế độ sáng"},
- en:{new:"New chat",history:"History",none:"No conversations yet",hi:"Hi there,",ask:"What scholarship are you looking for?",sub:"Pick a suggestion below or ask your own question.",refresh:"Refresh prompts",ph:"Ask anything about scholarships…",note:"For reference only. Always verify details on the official website before applying.",level:"Level",value:"Value",deadline:"Deadline",more:"Official website →",found:"I found %n scholarships matching your request:",fallback:"I’m not sure what you need yet. Try adding a country, degree level or field. Meanwhile, here are some popular ones:",err:"Couldn’t reach the server, so here are sample results instead:",untitled:"New chat",busy:"You’re asking too fast or the system is busy. Please try again in a few minutes.",srcl:"Sources",tag:"Scholarship search assistant",del:"Delete",send:"Send",hint:"Enter to send · Shift + Enter for a new line",menu:"Menu",dark:"Dark mode",light:"Light mode"}
+ vi:{new:"Cuộc trò chuyện mới",history:"Lịch sử",none:"Chưa có cuộc trò chuyện nào",hi:"Chào bạn,",ask:"Bạn muốn tìm học bổng nào?",sub:"Chọn một gợi ý bên dưới hoặc tự đặt câu hỏi của bạn.",refresh:"Làm mới gợi ý",ph:"Hỏi bất cứ điều gì về học bổng…",note:"Thông tin chỉ mang tính tham khảo. Hãy kiểm tra trên trang chính thức trước khi nộp hồ sơ.",level:"Bậc học",value:"Giá trị",deadline:"Hạn nộp",more:"Xem trang chính thức →",found:"Mình tìm được %n học bổng phù hợp với yêu cầu của bạn:",fallback:"Mình chưa rõ yêu cầu cụ thể, bạn thử nói thêm quốc gia, bậc học hoặc ngành nhé. Trước mắt đây là vài học bổng phổ biến:",err:"Có lỗi khi kết nối máy chủ, mình hiển thị kết quả mẫu thay thế:",untitled:"Cuộc trò chuyện mới",busy:"Bạn hỏi hơi nhanh hoặc hệ thống đang quá tải, vui lòng thử lại sau ít phút.",srcl:"Nguồn",tag:"Trợ lý tìm kiếm học bổng",del:"Xóa",send:"Gửi",hint:"Enter để gửi · Shift + Enter xuống dòng",menu:"Menu",dark:"Chế độ tối",light:"Chế độ sáng",find:"Tìm trong lịch sử",nores:"Không tìm thấy"},
+ en:{new:"New chat",history:"History",none:"No conversations yet",hi:"Hi there,",ask:"What scholarship are you looking for?",sub:"Pick a suggestion below or ask your own question.",refresh:"Refresh prompts",ph:"Ask anything about scholarships…",note:"For reference only. Always verify details on the official website before applying.",level:"Level",value:"Value",deadline:"Deadline",more:"Official website →",found:"I found %n scholarships matching your request:",fallback:"I’m not sure what you need yet. Try adding a country, degree level or field. Meanwhile, here are some popular ones:",err:"Couldn’t reach the server, so here are sample results instead:",untitled:"New chat",busy:"You’re asking too fast or the system is busy. Please try again in a few minutes.",srcl:"Sources",tag:"Scholarship search assistant",del:"Delete",send:"Send",hint:"Enter to send · Shift + Enter for a new line",menu:"Menu",dark:"Dark mode",light:"Light mode",find:"Search history",nores:"No matches"}
 };
 var S = [
  {id:"chev",name:"Chevening",org:"UK Government",c:{vi:"Anh",en:"United Kingdom"},k:["uk","anh","chevening","vuong quoc anh"],lv:["master"],v:{vi:"Học phí, sinh hoạt phí, vé máy bay",en:"Tuition, living stipend, flights"},d:{vi:"Khoảng tháng 10–11 hằng năm",en:"Around Oct–Nov each year"},l:"https://www.chevening.org"},
@@ -158,13 +162,15 @@ function t(k){return T[lang][k]}
 function applyLang(){
  document.documentElement.lang=lang;
  document.querySelectorAll("[data-t]").forEach(function(e){e.textContent=t(e.dataset.t)});
- $("inp").placeholder=t("ph");$("lvi").classList.toggle("on",lang==="vi");$("len").classList.toggle("on",lang==="en");thLabel();
+ $("inp").placeholder=t("ph");$("sq").placeholder=t("find");$("lvi").classList.toggle("on",lang==="vi");$("len").classList.toggle("on",lang==="en");thLabel();
  renderHist();renderChat();
 }
 function renderHist(){
  var h=$("hist");
  if(!chats.length){h.innerHTML='<div class="empty">'+esc(t("none"))+'</div>';return}
- h.innerHTML=chats.map(function(c){return '<div class="h'+(c.id===cur?' on':'')+'" data-id="'+c.id+'" role="button" tabindex="0"><span>'+esc(c.title||t("untitled"))+'</span><button class="x" data-del="'+c.id+'">'+esc(t("del"))+'</button></div>'}).join("");
+ var qq=norm($("sq").value.trim()),list=qq?chats.filter(function(c){return norm((c.title||"")+" "+c.msgs.map(function(m){return m.text||""}).join(" ")).indexOf(qq)>-1}):chats;
+ if(!list.length){h.innerHTML='<div class="empty">'+esc(t("nores"))+'</div>';return}
+ h.innerHTML=list.map(function(c){return '<div class="h'+(c.id===cur?' on':'')+'" data-id="'+c.id+'" role="button" tabindex="0"><span>'+esc(c.title||t("untitled"))+'</span><button class="x" data-del="'+c.id+'">'+esc(t("del"))+'</button></div>'}).join("");
 }
 function card(s){
  var lv=s.lv.map(function(x){return LV[x][lang]}).join(" · ");
@@ -230,6 +236,7 @@ $("theme").onclick=function(){var n=isDark()?"light":"dark";document.documentEle
 $("newBtn").onclick=function(){cur=null;renderHist();renderChat();closeSide();$("inp").focus()};
 $("burger").onclick=function(){$("side").classList.add("open");$("mask").classList.add("open")};
 $("mask").onclick=closeSide;
+$("sq").addEventListener("input",renderHist);
 $("hist").onclick=function(e){
  var d=e.target.closest("[data-del]");
  if(d){chats=chats.filter(function(c){return c.id!==d.dataset.del});if(cur===d.dataset.del)cur=null;save();renderHist();renderChat();return}
