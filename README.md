@@ -1,6 +1,8 @@
 # OppHunter – Guarded Agentic RAG for Scholarships
 
-**OppHunter** là trợ lý hỏi đáp về học bổng cho sinh viên. Hệ thống chỉ trả lời dựa trên kho dữ liệu do nhóm biên soạn từ trang chính thức, mỗi ý đều kèm trích dẫn, và từ chối khi không có thông tin thay vì đoán.
+**OppHunter** là trợ lý hỏi đáp về học bổng cho sinh viên. Hệ thống chỉ trả lời dựa trên kho dữ liệu do nhóm biên soạn từ trang chính thức, mỗi ý đều kèm trích dẫn, và từ chối khi không có thông tin thay vì đoán. Hỏi được bằng tiếng Việt hoặc tiếng Anh.
+
+**Dùng thử:** https://opphunter.netlify.app
 
 ---
 
@@ -8,215 +10,177 @@
 
 | Thành phần | Triển khai | Vị trí trong mã |
 |---|---|---|
-| **Mô hình** | Gemini qua endpoint tương thích OpenAI (đổi được sang OpenAI, Ollama, vLLM, LiteLLM bằng biến môi trường) | `src/guarded_rag/llm.py`, `config.py` |
-| **Agent điều phối** | Đồ thị LangGraph: kiểm tra đầu vào → lập kế hoạch → worker song song → kiểm tra phạm vi → soạn câu trả lời → kiểm tra và tự sửa → trả lời hoặc dự phòng | `src/guarded_rag/graph.py` |
-| **Tầng RAG** | Kho tri thức là các file markdown, tìm bằng BM25, câu trả lời bắt buộc có trích dẫn `[c:mã-tài-liệu#số]` | `kb.py`, `retrieval.py`, `data/kb/` |
-| **Observability** | Langfuse: ghi nội dung, token, độ trễ của mọi lần gọi mô hình | `llm.py` |
-| **Evals** | `grag eval`: 43 câu hỏi, chỉ số truy xuất, trích dẫn, chặn injection, từ chối ngoài phạm vi, lộ tài liệu giả mạo; có LLM judge tùy chọn | `eval.py`, `data/eval/questions.jsonl`, `results/` |
-| **Guardrails** | Che PII; chặn prompt injection (quét mẫu + LLM judge); cách ly tài liệu độc hại; validator trích dẫn, link, email, ngày và con số; ngân sách và trả lời dự phòng | `guards/`, `validators.py`, `graph.py`, `kb.py` |
+| **Mô hình** | Gemini `gemini-3.5-flash-lite` qua endpoint tương thích OpenAI (đổi được nhà cung cấp bằng biến môi trường) | `llm.py`, `config.py` |
+| **Agent điều phối** | Đồ thị LangGraph: kiểm tra đầu vào → lập kế hoạch → worker song song → kiểm tra phạm vi → soạn → kiểm tra và tự sửa → trả lời hoặc dự phòng | `graph.py` |
+| **Tầng RAG** | 20 học bổng dạng markdown, tìm bằng BM25, bắt buộc trích dẫn `[c:mã-tài-liệu#số]` | `kb.py`, `retrieval.py`, `data/kb/` |
+| **Observability** | Langfuse ghi nội dung, token, độ trễ của mọi lần gọi mô hình; `grag ask --trace` xem từng bước | `llm.py`, `cli.py` |
+| **Evals** | 70 câu, 5 loại; 4 lần chạy với mô hình thật; CI chạy test và eval offline mỗi lần push | `eval.py`, `data/eval/`, `results/`, `tests/` |
+| **Guardrails** | Che PII; chặn injection (mẫu EN/VI + LLM judge); cách ly tài liệu độc hại; validator trích dẫn, link, email, ngày, số; ngân sách gọi mô hình; giới hạn tần suất ở API | `guards/`, `validators.py`, `api.py` |
 
-## 2. Kiến trúc và luồng xử lý
+## 2. Kiến trúc
+
+```mermaid
+flowchart LR
+    U["Trình duyệt<br/>index.html (Netlify)"] -- "POST /chat" --> A["api.py (FastAPI, Render)<br/>CORS, ≤500 ký tự, 6 câu/phút/IP, 300 câu/ngày"]
+    A --> C["Lõi guarded_rag<br/>agent LangGraph"]
+    C --> K["data/kb/*.md<br/>BM25 trong bộ nhớ"]
+    C --> M["Gemini API"]
+    C -. "trace" .-> L["Langfuse"]
+```
+
+Luồng của agent:
 
 ```mermaid
 flowchart TD
-    Q["Câu hỏi của sinh viên"] --> G["input_guard<br/>che PII, quét mẫu, LLM judge"]
+    Q["Câu hỏi"] --> G["input_guard<br/>che PII, quét mẫu EN/VI, LLM judge"]
     G -- "Bị chặn" --> R["refuse"]
-    G --> P["Plan<br/>tối đa 3 câu con, viết bằng tiếng Anh"]
-    P --> W1["worker 1<br/>BM25 + ghi chú"]
-    P --> W2["worker N<br/>BM25 + ghi chú"]
-    W1 --> S["scope_check"]
-    W2 --> S
+    G --> P["plan<br/>≤ 3 câu con, viết bằng tiếng Anh"]
+    P --> W["worker ×N (song song)<br/>BM25 + ghi chú có trích dẫn"]
+    W --> S["scope_check"]
     S -- "Ngoài phạm vi" --> R
-    S --> WR["write"]
+    S --> WR["write (EN hoặc VI)"]
     WR --> V["validate"]
+    V -- "Có lỗi" --> RP["repair (≤ 2 lần)"] --> V
     V -- "Hợp lệ" --> F["finalize"]
-    V -- "Có lỗi" --> RP["repair (tối đa 2 lần)"]
-    RP --> V
-    V -- "Hết ngân sách hoặc còn lỗi" --> FB["fallback<br/>trích nguyên văn có nguồn"]
-    FB --> F
+    V -- "Hết ngân sách / còn lỗi" --> FB["fallback<br/>trích nguyên văn có nguồn"] --> F
 ```
 
-1. **input_guard:** che email, số điện thoại; quét mẫu injection; LLM judge kiểm tra thêm.
-2. **plan:** tách câu hỏi nhiều chủ đề thành tối đa 3 câu con, viết bằng tiếng Anh (nhờ đó câu hỏi tiếng Việt vẫn tìm được trong kho tiếng Anh).
-3. **worker:** tìm song song bằng BM25 và rút ghi chú có trích dẫn.
-4. **scope_check:** độ phủ từ khóa thấp thì từ chối là ngoài phạm vi.
-5. **write → validate → repair:** câu trả lời chỉ dựa vào ghi chú; validator kiểm tra trích dẫn, link, email, ngày và số có trong nguồn; lỗi thì viết lại tối đa 2 lần.
-6. **fallback:** hết ngân sách hoặc vẫn còn lỗi thì trả các ghi chú trích nguyên văn, luôn có nguồn.
+Mỗi câu hỏi có ngân sách 12 lần gọi mô hình và 90 giây. Máy chủ không lưu hội thoại: lịch sử chỉ nằm trong `localStorage` của trình duyệt, mỗi câu được xử lý độc lập.
 
 ## 3. Dữ liệu
 
-Kho dữ liệu nằm trong `data/kb/`: khoảng **[ĐIỀN: số học bổng]** học bổng, mỗi học bổng một file markdown, lấy từ trang chính thức của đơn vị cấp và có ngày kiểm tra. Kho có thêm 1 tài liệu giả mạo (thông báo đòi nộp phí xét học bổng qua email lạ) để kiểm thử cơ chế cách ly.
+`data/kb/` gồm **20 học bổng** (mỗi học bổng một file, lấy từ trang chính thức, có ngày kiểm tra) và **1 tài liệu giả mạo** (thông báo đòi phí xét học bổng) để kiểm thử cơ chế cách ly.
 
-Quy ước mỗi file:
-- Tên file là mã tài liệu dùng trong trích dẫn (ví dụ `bristol-think-big-scholarship-2027`).
-- Ba mục `##`: `Key facts` (quyền lợi, hạn nộp, trạng thái, link, ngày nhập học, cách nộp), `Eligibility`, `Required documents`. Mỗi mục `##` là một đoạn tìm kiếm độc lập.
-- Ngày theo dạng `YYYY-MM-DD`, kèm `Last verified`. Thông tin thiếu thì ghi `not specified`, không đoán.
-- Tên học bổng được nhắc lại ở câu đầu của mỗi mục để tìm kiếm trúng.
+- Tên file là mã trích dẫn, ví dụ `bristol-think-big-scholarship-2027`.
+- Ba mục `##`: `Key facts` (quyền lợi, hạn nộp, trạng thái, link, ngày nhập học, cách nộp), `Eligibility`, `Required documents`. Mỗi mục là một đoạn tìm kiếm.
+- Câu đầu mỗi mục nhắc lại tên học bổng; ngày dạng `YYYY-MM-DD`; thiếu thì ghi `not specified`.
 
-Ví dụ minh họa định dạng (dữ liệu hư cấu):
-
-```markdown
-# Example Global Scholarship
-
-## Key facts
-Example Global Scholarship is a fully funded master's scholarship from Example Foundation. Level: master's. Application deadline: 2027-01-31. Status: open. Last verified: 2026-11-16.
-Official page:
-https://example.org/scholarship
-```
-
-Khi chạy `grag kb`, hệ thống báo số đoạn được lập chỉ mục và đúng 1 đoạn bị cách ly (tài liệu giả mạo).
+`grag kb` báo **61 đoạn được lập chỉ mục, 1 đoạn bị cách ly**.
 
 ## 4. Cài đặt
 
-Yêu cầu: Python 3.10–3.13 (nhóm dùng 3.12). Một số thư viện chưa có bản cài sẵn cho các bản Python quá mới.
-
-**Windows (PowerShell)**
-
-```powershell
-git clone https://github.com/mthanh-412/OppHunter.git
-cd OppHunter
-py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -e ".[dev,ui]"
-```
-
-**macOS / Linux**
+Python 3.10–3.13 (nhóm dùng 3.12).
 
 ```bash
 git clone https://github.com/mthanh-412/OppHunter.git
 cd OppHunter
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev,ui]"
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
 ```
 
-Phần `ui` (Streamlit) chỉ cần cho giao diện web ở mục 7; chạy dòng lệnh thì dùng `".[dev]"` là đủ.
-
-## 5. Chạy thử không cần khóa API
-
-Chế độ `--offline` dùng một mô hình giả lập theo kịch bản, chỉ để kiểm tra toàn bộ luồng chạy được. Câu trả lời ở chế độ này **không** phải do mô hình thật tạo ra.
+Chạy thử **không cần khóa API** (mô hình giả lập, chỉ để kiểm tra luồng, câu trả lời không phải do mô hình thật tạo ra):
 
 ```bash
-grag kb                       # nạp kho dữ liệu, báo số đoạn và đoạn bị cách ly
-grag ask --offline "What is the deadline for the Think Big Scholarship 2027 at Bristol?"
-pytest -q                     # chạy bộ test
+grag kb
+grag ask --offline --trace "What is the deadline for the Think Big Scholarship 2027 at Bristol?"
+pytest -q
 ```
 
-## 6. Chạy với mô hình thật
+## 5. Chạy với mô hình thật
 
-Cấu hình bằng biến môi trường (**không ghi khóa vào mã và không commit khóa lên Git**). Ví dụ với Gemini trên PowerShell:
+Đặt biến môi trường (**không commit khóa lên Git**). Ví dụ PowerShell:
 
 ```powershell
 $env:GRAG_LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-$env:GRAG_LLM_MODEL    = "<tên model>"
-$env:GRAG_LLM_API_KEY  = "<khóa API của bạn>"
-$env:GRAG_LLM_DELAY    = "5"    # giây chờ trước mỗi lần gọi, tránh vượt giới hạn tốc độ của gói miễn phí
-```
+$env:GRAG_LLM_MODEL    = "gemini-3.5-flash-lite"
+$env:GRAG_LLM_API_KEY  = "<khóa API từ Google AI Studio>"
+$env:GRAG_LLM_DELAY    = "5"    # tùy chọn: chờ trước mỗi lần gọi để không vượt giới hạn gói miễn phí
 
-Nhóm đã chạy đánh giá với model **[ĐIỀN: tên model đã dùng]** trên gói miễn phí.
-
-Hỏi một câu và xem các bước đã đi qua:
-
-```bash
-grag ask --trace "What is the application deadline for the Aalto University Excellence Scholarship 2027?"
-```
-
-Câu hỏi tiếng Việt cũng được hỗ trợ ở mức hạn chế (planner dịch sang tiếng Anh; câu trả lời bằng tiếng Anh).
-
-### Observability với Langfuse (tùy chọn)
-
-Đặt ba biến sau, hệ thống tự gửi trace cho Langfuse; không đặt thì chạy bình thường:
-
-```powershell
+# Langfuse (tùy chọn, không đặt thì vẫn chạy bình thường)
 $env:LANGFUSE_PUBLIC_KEY = "<pk-lf-...>"
 $env:LANGFUSE_SECRET_KEY = "<sk-lf-...>"
-$env:LANGFUSE_BASE_URL   = "https://cloud.langfuse.com"   # hoặc https://us.cloud.langfuse.com
+$env:LANGFUSE_BASE_URL   = "https://us.cloud.langfuse.com"
 ```
 
-Mỗi lần gọi mô hình hiện thành một trace riêng (judge_injection, plan, notes, write). Email thật không xuất hiện trong trace vì đã được che trước khi gửi mô hình.
-
-## 7. Giao diện web (chạy cục bộ)
-
-Giao diện cơ bản bằng Streamlit, gọi trực tiếp hàm `answer()` của lõi (file `app.py`).
-
 ```bash
-streamlit run app.py --server.address localhost
-```
-
-Mở `http://localhost:8501`. Giao diện hiển thị câu trả lời, trạng thái (có trả lời, dự phòng, bị chặn, ngoài phạm vi), nguồn trích dẫn và các bước xử lý. Nếu chưa đặt biến môi trường `GRAG_LLM_API_KEY`, ứng dụng tự bật chế độ offline (mô hình giả lập, chỉ để thử luồng chạy). Mỗi câu hỏi với mô hình thật có thể mất vài chục giây do khoảng chờ của gói miễn phí.
-
-Giao diện chỉ chạy trên máy của người bật nó, chưa triển khai công khai.
-
-## 8. Đánh giá (evals)
-
-```bash
+grag ask --trace "Hạn nộp học bổng Aalto University Excellence 2027 là khi nào?"
 grag eval --judge --out results/ten-lan-chay.json
 ```
 
-Bộ 43 câu hỏi do nhóm viết:
+## 6. Giao diện web và API
 
-| Loại | Số câu | Dùng để đo |
+- **Giao diện:** `index.html` (HTML/CSS/JS thuần) triển khai trên Netlify. Có câu hỏi gợi ý, chú thích nguồn [1], [2] kèm link chính thức, lịch sử trò chuyện, VI/EN, sáng/tối.
+- **API:** `api.py` (FastAPI) triển khai trên Render, gồm `GET /` để kiểm tra và `POST /chat` nhận `{message, lang}`, trả `{answer, status, sources, masked_question}`.
+
+Chạy API cục bộ:
+
+```bash
+pip install fastapi uvicorn
+uvicorn api:app --reload --port 8000
+```
+
+| Biến môi trường | Mặc định | Ý nghĩa |
 |---|---|---|
-| Bình thường (hạn nộp, điều kiện, hồ sơ, so sánh nhiều học bổng, câu khó) | 27 | Truy xuất, trích dẫn |
-| Có thông tin cá nhân (PII) | 1 | Che thông tin cá nhân |
-| Thăm dò tài liệu giả mạo | 2 | Không lộ nội dung độc hại |
-| Prompt injection | 7 | Chặn injection |
-| Ngoài phạm vi | 6 | Từ chối |
+| `GRAG_OFFLINE` | (tắt) | `1` để chạy API với mô hình giả lập |
+| `ALLOWED_ORIGINS` | `https://opphunter.netlify.app` | Tên miền được gọi API (phân tách bằng dấu phẩy) |
+| `RATE_PER_MIN` | `6` | Số câu hỏi / phút / IP |
+| `DAILY_CAP` | `300` | Tổng số câu hỏi / ngày |
 
-Mỗi lần chạy gọi mô hình hàng trăm lần, hãy kiểm tra hạn mức API trước khi chạy. Kết quả đầy đủ lưu trong thư mục `results/`:
+Để dùng giao diện với API cục bộ: đặt `ALLOWED_ORIGINS` thành địa chỉ trang cục bộ và sửa `API_URL` trong `index.html` thành `http://localhost:8000/chat`.
 
-| Chỉ số | Baseline (33 câu) | v2 (43 câu) | v3 (43 câu) |
+## 7. Đánh giá
+
+| Loại câu | Baseline | v4 | Dùng để đo |
 |---|---|---|---|
-| Truy xuất đúng tài liệu | 100% | 100% | 100% |
-| Trích dẫn đúng tài liệu | 100% | 100% | 100% |
-| Qua validator | 100% | 100% | 100% |
-| Cần viết lại | 4,3% | 0% | 10% |
-| Trả lời dự phòng | 0% | 0% | 0% |
-| Chặn nhầm câu bình thường | 0% | 0% | 0% |
-| Lộ tài liệu giả mạo | 0% | 0% | 0% |
-| Chặn injection | 100% | 100% | 100% |
-| Từ chối câu ngoài phạm vi | 100% | 83,3% (5/6) | 100% (6/6) |
-| Số lần gọi mô hình trung bình | 3,73 | 3,70 | 3,47 |
-| Thời gian trung bình (giây) | 26,46 | 39,32 | 37,48 |
-| LLM judge: groundedness / helpfulness | 4,96 / 4,96 | 4,83 / 4,77 | 4,8 / 4,7 |
+| Bình thường (hạn nộp, điều kiện, hồ sơ, so sánh, câu khó) | 21 | 54 | Truy xuất, trích dẫn |
+| PII | 1 | 1 | Che thông tin cá nhân |
+| Thăm dò tài liệu giả mạo | 1 | 2 | Không lộ nội dung độc hại |
+| Prompt injection | 6 | 7 | Chặn injection |
+| Ngoài phạm vi | 4 | 6 | Từ chối |
 
-Cách đọc kết quả:
-- Bộ câu hỏi do nhóm tự viết từ chính tài liệu, nên "100%" nghĩa là trên bộ này, không phải đảm bảo cho mọi câu hỏi thực tế.
-- Thời gian trung bình bao gồm khoảng chờ cố ý của gói miễn phí, không phản ánh độ trễ thực của sản phẩm.
-- Điểm LLM judge chỉ mang tính tham khảo vì mô hình tự chấm câu trả lời của chính nó.
-- v2 thêm 10 câu khó vào bộ gốc. v3 gộp hai thay đổi: planner dịch câu hỏi sang tiếng Anh, và sửa prompt để câu từ chối không kèm trích dẫn (ca q42 ở v2 từ chối đúng nhưng bị gắn nhãn sai vì trích dẫn lạc).
-- Tỉ lệ viết lại tăng lên 10% ở v3. Các câu đó đều được sửa thành công (dự phòng 0%, qua validator 100%); nguyên nhân chưa được điều tra.
-- Kiểm tay đối chiếu với nguồn phát hiện hai lỗi bỏ sót (hệ thống nói "không được nêu" dù tài liệu có thông tin), đã sửa bằng cách đưa các chi tiết thường được hỏi lên mục `Key facts`.
+| Chỉ số | Baseline (33) | v2 (43) | v3 (43) | v4 (70) |
+|---|---|---|---|---|
+| Truy xuất đúng tài liệu | 100% | 100% | 100% | 100% |
+| Trích dẫn đúng tài liệu | 100% | 100% | 100% | 100% |
+| Qua validator | 100% | 100% | 100% | 100% |
+| Cần viết lại* | 4,3% (1/23) | 0% | 7,0% (3/43) | 0% |
+| Trả lời dự phòng | 0% | 0% | 0% | 0% |
+| Chặn nhầm câu bình thường | 0% | 0% | 0% | 0% |
+| Lộ tài liệu giả mạo | 0% | 0% | 0% | 0% |
+| Chặn injection | 100% | 100% | 100% | 100% |
+| Từ chối câu ngoài phạm vi | 100% | 83,3% | 100% | 100% |
+| Số lần gọi mô hình TB | 3,73 | 3,70 | 3,47 | 3,74 |
+| Thời gian TB (giây)** | 26,46 | 39,32 | 37,48 | 21,34 |
+| LLM judge: groundedness / helpfulness | 4,96 / 4,96 | 4,83 / 4,77 | 4,80 / 4,70 | 5,00 / 4,86 |
 
-## 9. Cấu trúc thư mục
+\* Tính trên các câu cần trả lời (bình thường, PII, thăm dò); không tính câu injection và câu ngoài phạm vi vì chúng bị chặn trước bước viết.
+\*\* Bao gồm khoảng chờ cố ý của gói miễn phí, không phản ánh độ trễ thật.
+
+Các phiên bản:
+- **v2:** thêm 10 câu khó và phát hiện lỗi q42: câu từ chối kèm trích dẫn lạc nên bị gắn nhãn sai.
+- **v3:** planner luôn viết câu con bằng tiếng Anh; câu từ chối không kèm trích dẫn. 3 câu so sánh (q17–q19) phải viết lại một lần mới qua validator.
+- **v4:** trả lời bằng tiếng Việt khi hỏi tiếng Việt, thêm mẫu chặn injection tiếng Việt, giao diện web công khai, bộ câu tăng lên 70.
+
+Lưu ý khi đọc kết quả: bộ câu do nhóm tự viết nên "100%" chỉ đúng trên bộ này; điểm LLM judge chỉ để tham khảo vì Gemini tự chấm câu trả lời của chính nó. Khi chạy offline (chỉ còn mẫu quét), tỉ lệ chặn injection giảm còn 85,7% và tỉ lệ từ chối còn 83,3%, cho thấy vai trò của LLM judge.
+
+## 8. Cấu trúc thư mục
 
 ```text
 OppHunter/
-├── app.py                # giao diện web cục bộ (Streamlit)
+├── index.html            # giao diện web (Netlify)
+├── api.py                # API FastAPI (Render)
 ├── src/guarded_rag/
-│   ├── cli.py            # lệnh grag (kb, ask, eval)
-│   ├── config.py         # cấu hình, đọc biến môi trường
-│   ├── graph.py          # agent điều phối (LangGraph)
-│   ├── kb.py             # nạp và cắt kho dữ liệu, cách ly tài liệu độc hại
-│   ├── retrieval.py      # tìm kiếm BM25
+│   ├── graph.py          # agent LangGraph
+│   ├── kb.py             # nạp, cắt kho, cách ly tài liệu độc hại
+│   ├── retrieval.py      # BM25
 │   ├── validators.py     # kiểm tra trích dẫn, link, email, ngày, số
-│   ├── llm.py            # kết nối mô hình, Langfuse
-│   ├── eval.py           # bộ đánh giá
-│   └── guards/           # che PII, chống injection, thẻ rào cho nội dung không tin cậy
-├── data/
-│   ├── kb/               # kho học bổng (mỗi học bổng một file .md)
-│   └── eval/questions.jsonl
-├── results/              # kết quả các lần chạy eval
-├── tests/
-└── pyproject.toml
+│   ├── llm.py            # kết nối mô hình, Langfuse, mô hình giả lập
+│   ├── lang.py           # nhận diện tiếng Việt
+│   ├── eval.py, cli.py   # bộ đánh giá, lệnh grag
+│   ├── config.py         # cấu hình từ biến môi trường
+│   └── guards/           # pii, injection, injection_vi, fence
+├── data/kb/              # 21 file học bổng (.md)
+├── data/eval/questions.jsonl
+├── results/              # baseline, v2, v3, v4
+└── tests/                # 29 test
 ```
 
-## 10. Hạn chế
+## 9. Hạn chế
 
-- Bộ đánh giá nhỏ và do nhóm tự viết.
-- Tìm kiếm theo từ khóa nên có thể bỏ sót khi diễn đạt khác; hệ thống có thể nói "không được nêu" dù dữ liệu có thông tin.
-- Hệ thống không biết ngày hiện tại nên có thể nêu học bổng đã hết hạn.
-- Câu hỏi trộn lẫn phần hợp lệ và lệnh độc hại bị chặn cả câu.
-- Kho dữ liệu nhỏ, cập nhật thủ công; giao diện web chỉ chạy cục bộ, chưa triển khai công khai.
-- Tiếng Việt ở mức hạn chế, câu trả lời bằng tiếng Anh; câu injection bằng tiếng Việt chỉ do LLM judge chặn.
-- Hệ thống chỉ nêu điều kiện, không kết luận sinh viên có đủ điều kiện hay không. Hãy luôn kiểm tra lại trang chính thức trước khi nộp hồ sơ.
+- Bộ đánh giá nhỏ, do nhóm tự viết.
+- Tìm kiếm từ khóa có thể bỏ sót khi diễn đạt khác; validator không bắt được lỗi bỏ sót (nói "không được nêu" dù dữ liệu có).
+- Chưa biết ngày hiện tại nên có thể nêu học bổng đã hết hạn; không có hội thoại nhiều lượt.
+- Câu trộn phần hợp lệ với lệnh độc hại bị chặn cả câu.
+- Kho nhỏ, cập nhật thủ công; chưa che họ tên; trace Langfuse chưa gom theo câu hỏi.
+- Hệ thống chỉ nêu điều kiện, không kết luận sinh viên có đủ điều kiện hay không. **Luôn kiểm tra lại trang chính thức trước khi nộp hồ sơ.**
