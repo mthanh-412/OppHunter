@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "guarded-agentic-rag"
+version = "0.1.0"
+description = "OppHunter: guarded agentic RAG for scholarships."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Nhom 04" }]
+keywords = ["rag", "agentic-rag", "langgraph", "llm", "guardrails", "prompt-injection", "owasp", "llm-evaluation"]
+dependencies = ["langgraph>=0.3", "openai>=1.40", "langfuse"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+grag = "guarded_rag.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/guarded_rag"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
