@@ -89,6 +89,11 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
 .b .bub.fit{width:auto;max-width:100%}
 .u .bub{max-width:86%;background:var(--user);color:#fff;border-bottom-right-radius:4px}
 .b .bub{width:100%;background:var(--sf);border:1px solid var(--line);border-bottom-left-radius:4px;border-left:3px solid var(--gold2);padding:16px 20px}
+.li{display:flex;align-items:flex-start;gap:12px;margin:8px 0}
+.li .bd{flex:none;width:6px;height:6px;border-radius:50%;background:var(--acc);margin-top:10px}
+.li .lt{flex:1;min-width:0}
+.pt{margin:8px 0}
+.bub>.li:first-child,.bub>.pt:first-child{margin-top:0}
 sup.c{color:var(--acc);font-weight:700;margin-left:2px}
 .src{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--mut);white-space:normal}
 .src div{margin-top:4px}
@@ -190,8 +195,12 @@ function renderHist(){
  h.innerHTML=list.map(function(c){return '<div class="h'+(c.id===cur?' on':'')+'" data-id="'+c.id+'" role="button" tabindex="0"><span class="tt">'+esc(c.title||t("untitled"))+'</span><span class="acts"><button class="x" data-ren="'+c.id+'">'+esc(t("ren"))+'</button><button class="x" data-del="'+c.id+'">'+esc(t("del"))+'</button></span></div>'}).join("");
 }
 function fmt(txt,src){
- var h=esc(txt);
- return h.replace(/\s*\[c:([^\]]+)\]/g,function(_,id){var d=id.split("#")[0],i=-1;src.forEach(function(s,k){if(s.id===d)i=k});return i<0?"":'<sup class="c">['+(i+1)+']</sup>'});
+ var h=esc(txt).replace(/\s*\[c:([^\]]+)\]/g,function(_,id){var d=id.split("#")[0],i=-1;src.forEach(function(s,k){if(s.id===d)i=k});return i<0?"":'<sup class="c">['+(i+1)+']</sup>'});
+ return h.split(/\r?\n/).map(function(l){
+  var m=l.match(/^\s*(?:[*\-\u2022\u2013]|\d+[.)])\s+(.*)$/);
+  if(m)return '<div class="li"><span class="bd"></span><span class="lt">'+m[1]+'</span></div>';
+  return l.trim()?'<div class="pt">'+l+'</div>':'';
+ }).join("");
 }
 function srcHTML(src){
  if(!src||!src.length)return "";
