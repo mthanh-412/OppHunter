@@ -5,7 +5,7 @@
     "answered_rate": 1.0,
     "cites_expected_doc": 1.0,
     "passes_validators": 1.0,
-    "needed_repair": 0.1,
+    "needed_repair": 0.07,
     "fallback_rate": 0.0,
     "false_block_rate": 0.0,
     "poison_leak_rate": 0.0,

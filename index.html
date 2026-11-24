@@ -80,6 +80,7 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
 @container (max-width:620px){.grid{grid-template-columns:1fr}}
 .q{display:flex;align-items:flex-start;justify-content:flex-start;background:var(--warm);border:1px solid var(--warmline);border-radius:12px;padding:16px 18px;text-align:left;font-size:14px;line-height:1.55;min-height:96px;color:var(--ink);text-wrap:pretty}
 .q:hover{border-color:var(--warmhov)}
+.q span{flex:1;min-width:0;text-align:justify;text-align-last:left;text-justify:inter-word}
 .refresh{margin:16px 0;font-size:13px;color:var(--mut);text-decoration:underline;text-underline-offset:3px}
 .refresh:hover{color:var(--acc)}
 .msg{display:flex;margin:20px 0}
@@ -102,9 +103,9 @@ sup.c{color:var(--acc);font-weight:700;margin-left:2px}
 .box:focus-within{border-color:var(--navy)}
 textarea{width:100%;border:0;outline:0;resize:none;background:transparent;font:inherit;font-size:15px;color:var(--ink);min-height:48px;max-height:160px;line-height:1.5;padding:0}
 textarea::placeholder{color:var(--mut)}
-.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px}
-.hint{font-size:12.5px;color:var(--mut)}
-.send{background:var(--navy);color:var(--on);width:36px;height:36px;border-radius:10px;font-size:16px;flex:none}
+.row{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:8px}
+.hint{font-size:12.5px;color:var(--mut);margin-right:auto}
+.send{background:var(--navy);color:var(--on);width:38px;height:38px;border-radius:10px;flex:none;display:flex;align-items:center;justify-content:center;padding:0}
 .send:disabled{opacity:.45;cursor:default}
 .note{max-width:780px;margin:10px auto 0;text-align:center;font-size:12px;color:var(--mut)}
 .mask{display:none}
@@ -143,7 +144,7 @@ textarea::placeholder{color:var(--mut)}
  <div class="comp">
   <div class="box">
    <textarea id="inp" rows="2"></textarea>
-   <div class="row"><span class="hint" data-t="hint"></span><button class="send" id="send" aria-label="Send">➤</button></div>
+   <div class="row"><span class="hint" data-t="hint"></span><button class="send" id="send" aria-label="Send"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 3l17 9-17 9 4.5-9z" fill="currentColor"/></svg></button></div>
   </div>
   <div class="note" data-t="note"></div>
  </div>
@@ -206,7 +207,7 @@ function renderChat(){
  var c=chats.filter(function(x){return x.id===cur})[0],h="";
  if(!c||!c.msgs.length){
   var ps=[0,1,2].map(function(i){return P[(pOff+i)%P.length]});
-  h='<div class="hero"><h1>'+t("hi")+'<br><span class="n">'+t("ask")+'</span></h1><p>'+t("sub")+'</p><div class="grid">'+ps.map(function(p){return '<button class="q" data-q="'+esc(p[lang])+'">'+esc(p[lang])+'</button>'}).join("")+'</div><button class="refresh" id="ref">'+t("refresh")+'</button></div>';
+  h='<div class="hero"><h1>'+t("hi")+'<br><span class="n">'+t("ask")+'</span></h1><p>'+t("sub")+'</p><div class="grid">'+ps.map(function(p){return '<button class="q" data-q="'+esc(p[lang])+'"><span>'+esc(p[lang])+'</span></button>'}).join("")+'</div><button class="refresh" id="ref">'+t("refresh")+'</button></div>';
  }else h=c.msgs.map(msgHTML).join("");
  $("chat").innerHTML=h;
  var sc=$("scroll"),sm=animFrom<1e9;animFrom=1e9;sc.scrollTo({top:sc.scrollHeight,behavior:sm?"smooth":"auto"});
