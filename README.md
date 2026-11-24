@@ -35,8 +35,10 @@ flowchart TD
     Q["Câu hỏi"] --> G["input_guard<br/>che PII, quét mẫu EN/VI, LLM judge"]
     G -- "Bị chặn" --> R["refuse"]
     G --> P["plan<br/>≤ 3 câu con, viết bằng tiếng Anh"]
-    P --> W["worker ×N (song song)<br/>BM25 + ghi chú có trích dẫn"]
-    W --> S["scope_check"]
+    P --> W1["worker 1<br/>BM25 + ghi chú có trích dẫn"]
+    P --> W2["worker N<br/>BM25 + ghi chú có trích dẫn"]
+    W1 --> S["scope_check"]
+    W2 --> S
     S -- "Ngoài phạm vi" --> R
     S --> WR["write (EN hoặc VI)"]
     WR --> V["validate"]
