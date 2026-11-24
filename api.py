@@ -24,8 +24,11 @@ kb = load_kb(settings.kb_dir)  # nạp 1 lần lúc khởi động
 
 OFFLINE = os.getenv("GRAG_OFFLINE") == "1"                 # =1 để test không cần model
 ORIGINS = [
-    o.strip()
-    for o in os.getenv("ALLOWED_ORIGINS", "").split(",")
+    o.strip().rstrip("/")
+    for o in os.getenv(
+        "ALLOWED_ORIGINS",
+        "https://opphunter.netlify.app"
+    ).split(",")
     if o.strip()
 ]
 PER_MIN = int(os.getenv("RATE_PER_MIN", "6"))              # số câu hỏi / phút / người dùng
@@ -44,8 +47,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 _hits: dict[str, deque] = defaultdict(deque)
