@@ -136,7 +136,7 @@ uvicorn api:app --reload --port 8000
 | Truy xuất đúng tài liệu | 100% | 100% | 100% | 100% |
 | Trích dẫn đúng tài liệu | 100% | 100% | 100% | 100% |
 | Qua validator | 100% | 100% | 100% | 100% |
-| Cần viết lại* | 4,3% (1/23) | 0% | 7,0% (3/43) | 0% |
+| Cần viết lại* | 4,3% (1/23) | 0% | 10% (3/30) | 0% |
 | Trả lời dự phòng | 0% | 0% | 0% | 0% |
 | Chặn nhầm câu bình thường | 0% | 0% | 0% | 0% |
 | Lộ tài liệu giả mạo | 0% | 0% | 0% | 0% |
