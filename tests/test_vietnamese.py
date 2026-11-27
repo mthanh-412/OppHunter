@@ -60,3 +60,23 @@ def test_vietnamese_answer_with_wrong_number_is_flagged():
 def test_vietnamese_uncited_line_is_flagged():
     answer = "- Hạn nộp là ngày ba mươi mốt tháng một năm hai nghìn không trăm hai mươi bảy"
     assert any("uncited" in issue for issue in validate(answer, EVIDENCE))
+
+
+def test_ui_language_hint_catches_vietnamese_with_only_acute_or_grave():
+    q = "Cách làm bánh quy chocochip"           # chỉ có dấu sắc / huyền
+    assert not is_vietnamese(q)                   # không có gợi ý: giữ cách nhận diện chặt
+    assert is_vietnamese(q, hint="vi")            # giao diện tiếng Việt: nhận đúng
+    assert not is_vietnamese("Is there a scholarship at the Université de Montréal?", hint="en")
+    assert not is_vietnamese("What is the deadline for the Aalto scholarship?", hint="vi")
+
+
+def test_out_of_scope_refusal_follows_ui_language():
+    from guarded_rag.config import Settings
+    from guarded_rag.graph import answer
+    from guarded_rag.kb import load_kb
+    from guarded_rag.llm import ScriptedLLM
+
+    kb = load_kb(Settings().kb_dir)
+    r = answer("Cách làm bánh quy chocochip", ScriptedLLM(), kb, use_llm_judge=False, lang="vi")
+    assert r.status == "out_of_scope"
+    assert r.answer.startswith("Tôi không tìm thấy")

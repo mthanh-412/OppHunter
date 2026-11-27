@@ -14,10 +14,13 @@ def fold(text: str) -> str:
     return "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
 
 
-def is_vietnamese(text: str) -> bool:
+def is_vietnamese(text: str, hint: str | None = None) -> bool:
     """True nếu câu có ký tự đặc trưng tiếng Việt, hoặc là tiếng Việt không dấu với cụm quen thuộc."""
     if "đ" in text.lower():
         return True
-    if any(ch in _VI_MARKS for ch in unicodedata.normalize("NFD", text)):
+    decomposed = unicodedata.normalize("NFD", text)
+    if any(ch in _VI_MARKS for ch in decomposed):
         return True
-    return bool(_VI_PLAIN.search(fold(text)))
+    if _VI_PLAIN.search(fold(text)):
+        return True
+    return hint == "vi" and any(unicodedata.category(ch) == "Mn" for ch in decomposed)

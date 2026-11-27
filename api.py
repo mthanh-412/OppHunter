@@ -94,7 +94,7 @@ def chat(r: Req, request: Request):
 
     llm = ScriptedLLM() if OFFLINE else OpenAICompatLLM(settings.llm_base_url, settings.llm_model, settings.llm_api_key)
     try:
-        res = answer(msg, llm, kb, settings, use_llm_judge=not OFFLINE)
+        res = answer(msg, llm, kb, settings, use_llm_judge=not OFFLINE, lang=r.lang)
     except Exception as e:  # lỗi gọi model, hết quota...
         raise HTTPException(502, f"model error: {type(e).__name__}")
 

@@ -94,6 +94,7 @@ REFUSALS_VI = {
 
 class State(TypedDict, total=False):
     question: str
+    lang_hint: str | None
     masked: str
     vi: bool
     pii: PiiMap
@@ -142,7 +143,7 @@ def build_graph(llm: LLM, kb: KnowledgeBase, settings: Settings | None = None, u
             flagged, reason = llm_judge(llm, masked)
             if flagged:
                 hits = [f"llm_judge: {reason}"]
-        return {"masked": masked, "pii": pii, "blocked_by": hits, "vi": is_vietnamese(state["question"]),
+        return {"masked": masked, "pii": pii, "blocked_by": hits, "vi": is_vietnamese(state["question"], state.get("lang_hint")),
                 "trace": ev("input_guard", pii_masked=len(pii.values), blocked_by=hits)}
 
     def plan(state: State) -> State:
@@ -267,9 +268,12 @@ def build_graph(llm: LLM, kb: KnowledgeBase, settings: Settings | None = None, u
     return g.compile()
 
 
-def answer(question: str, llm: LLM, kb: KnowledgeBase, settings: Settings | None = None, use_llm_judge: bool = True) -> Result:
+def answer(question: str, llm: LLM, kb: KnowledgeBase, settings: Settings | None = None, use_llm_judge: bool = True,
+           lang: str | None = None) -> Result:
+    """lang: ngôn ngữ giao diện ("vi" | "en"), chỉ dùng làm tín hiệu phụ khi nhận diện ngôn ngữ câu hỏi."""
     graph = build_graph(llm, kb, settings, use_llm_judge)
     start_calls, t0 = llm.calls, time.monotonic()
-    out = graph.invoke({"question": question, "t0": t0, "c0": start_calls, "evidence": [], "notes": [], "trace": []})
+    out = graph.invoke({"question": question, "lang_hint": lang, "t0": t0, "c0": start_calls,
+                        "evidence": [], "notes": [], "trace": []})
     return Result(answer=out["answer"], status=out["status"], citations=citations(out["answer"]),
                   trace=out["trace"], llm_calls=llm.calls - start_calls, seconds=round(time.monotonic() - t0, 2))
